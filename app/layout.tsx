@@ -1,9 +1,13 @@
+import { AppSidebar } from "@/components/app-sidebar";
 import { RootDataProvider } from '@/components/providers/root-data';
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getData } from '@/lib/api';
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cache } from 'react';
 import "./globals.css";
+
 export const revalidate = 3600;
 const get = cache((p: string) => getData(p));
 
@@ -32,7 +36,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <RootDataProvider value={{ articles, categories }}>
-          {children}
+          <SidebarProvider
+            style={
+              {
+                "--sidebar-width": "calc(var(--spacing) * 72)",
+                "--header-height": "calc(var(--spacing) * 12)",
+              } as React.CSSProperties
+            }
+          >
+            {/* Sidebar mặc định */}
+            <AppSidebar variant="inset" />
+
+            {/* Vùng chính: header + nội dung =>*/}
+            <SidebarInset>
+              <SiteHeader />
+              <div className="flex flex-1 flex-col">
+                {children}
+              </div>
+            </SidebarInset>
+            {/* ========= */}
+          </SidebarProvider>
         </RootDataProvider>
       </body>
     </html>

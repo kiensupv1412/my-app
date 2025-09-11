@@ -5,11 +5,11 @@
 'use client';
 
 import { MediaDetail } from '@/components/media/media-detail';
+import { UploadMediaDialog } from '@/components/media/upload-media-dialog';
 import { useRootData } from '@/components/providers/root-data';
 import { Button } from '@/components/ui/button';
-
-import { apiCreateFolder, apiDeleteMedia, apiListFolders, apiListMediaByFolder, type Folder } from '@/lib/media.api';
-import { IconChevronLeft } from '@tabler/icons-react';
+import { MediaItem, apiCreateFolder, apiDeleteMedia, apiListFolders, apiListMediaByFolder, type Folder } from '@/lib/media.api';
+import { IconChevronLeft, IconPlus } from '@tabler/icons-react';
 import * as React from 'react';
 
 /* ------- utils ------- */
@@ -42,6 +42,36 @@ export default function MediaPage() {
 
     const [items, setItems] = React.useState<MediaItem[]>(normalized);
 
+    function normalizeMediaItem(m: any): MediaItem {
+        return {
+            id: Number(m?.id ?? 0),
+            site: m?.site,
+            user_id: m?.user_id,
+            media_type: m?.media_type ? String(m.media_type) : undefined,
+            uuid: m?.uuid ? String(m.uuid) : undefined,
+            name:
+                m?.name ? String(m.name) :
+                    m?.original_name ? String(m.original_name) :
+                        m?.file_name ? String(m.file_name) : 'Untitled',
+            file_name:
+                m?.file_name ? String(m.file_name) :
+                    m?.stored_name ? String(m.stored_name) : '',
+            file_url:
+                m?.file_url ? String(m.file_url) :
+                    m?.url ? String(m.url) : '',
+            file_size:
+                m?.file_size !== undefined ? Number(m.file_size) :
+                    m?.size !== undefined ? Number(m.size) : 0,
+            mime: m?.mime ? String(m.mime) : 'application/octet-stream',
+            alt: m?.alt ?? null,
+            caption: m?.caption ?? null,
+            thumbnail: m?.thumbnail ?? null,
+            width: m?.width !== undefined ? Number(m.width) : null,
+            height: m?.height !== undefined ? Number(m.height) : null,
+            created_at: m?.created_at,
+            updated_at: m?.updated_at,
+        };
+    }
     // 1) load folders lúc mount
     React.useEffect(() => {
         apiListFolders()
@@ -78,7 +108,7 @@ export default function MediaPage() {
         return (
             <button
                 onClick={onCreate}
-                className="group relative w-full text-left"
+                className="group relative w-full text-left h-28"
                 title="Create folder"
             >
                 <div className="rounded-xl border border-dashed bg-background p-3 transition-colors hover:bg-accent/30">
@@ -119,7 +149,9 @@ export default function MediaPage() {
                 : '—';
 
         return (
-            <button
+            <div
+                role="button"
+                tabIndex={0}
                 onClick={() => onOpen?.(f.id)}
                 className="group relative w-full text-left"
                 title={f.name}
@@ -170,7 +202,7 @@ export default function MediaPage() {
                     <div className="line-clamp-1 text-sm font-medium">{f.name}</div>
                     <div className="text-xs text-muted-foreground">{itemText}</div>
                 </div>
-            </button>
+            </div>
         );
     }
 
@@ -178,37 +210,38 @@ export default function MediaPage() {
     function FolderHeader() {
         if (currentFolderId === null) return null;
         return (
-            <div className="flex items-center gap-2 px-4 lg:px-6">
-                <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setCurrentFolderId(null)}
-                    className="gap-1"
-                >
-                    <IconChevronLeft className="h-4 w-4" />
-                    All media
-                </Button>
-                <div className="text-sm text-muted-foreground">
-                    <span className="mx-2">/</span>
-                    <span className="font-medium">{currentFolder ? currentFolder.name : 'Folder'}</span>
+            <div className="flex justify-between">
+                <div className="flex items-center">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setCurrentFolderId(null)}
+                        className="gap-1"
+                    >
+                        <IconChevronLeft className="h-4 w-4" />
+                        All media
+                    </Button>
+                    <div className="text-sm text-muted-foreground">
+                        <span className="mx-2">/</span>
+                        <span className="font-medium">{currentFolder ? currentFolder.name : 'Folder'}</span>
+                    </div>
                 </div>
+                <UploadMediaDialog setItems={setItems} currentFolderId={currentFolderId}>
+                    <Button variant="outline" size="sm">
+                        <IconPlus />
+                        <span className="hidden lg:inline">Upload Image</span>
+                    </Button>
+                </UploadMediaDialog>
             </div>
         );
     }
 
     return (
         <div className="p-6 space-y-4">
-            {/* header + upload dialog giữ nguyên */}
-
             <FolderHeader />
-
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-                {/* Folders chỉ ở root */}
                 {currentFolderId === null && (
                     <>
-                        {folders.map((f) => (
-                            <FolderCard key={f.id} f={f} onOpen={setCurrentFolderId} />
-                        ))}
                         <CreateFolderCard
                             onCreate={async () => {
                                 const name = prompt('Tên folder mới:');
@@ -224,10 +257,13 @@ export default function MediaPage() {
                                 }
                             }}
                         />
+                        {folders.map((f) => (
+                            <FolderCard key={f.id} f={f} onOpen={setCurrentFolderId} />
+                        ))}
                     </>
                 )}
-
-                {/* Media giữ nguyên */}
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
                 {items.length === 0 ? (
                     <div className="col-span-full flex flex-col items-center justify-center gap-2 rounded-lg border py-16 text-sm text-muted-foreground">
                         <div className="rounded-full border px-3 py-1">Chưa có media nào</div>
@@ -259,7 +295,6 @@ export default function MediaPage() {
                     ))
                 )}
             </div>
-
             <div className="px-1 text-xs text-muted-foreground">Tổng: {items.length} mục</div>
         </div>
     );

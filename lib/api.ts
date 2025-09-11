@@ -7,7 +7,7 @@ const BASE = 'http://localhost:4000/';
 // Tạo 1 instance để dùng lại
 const api = axios.create({
   baseURL: BASE,
-  timeout: 3000, // 10s
+  timeout: 10000, // 10s
   headers: {
     'Content-Type': 'application/json',
   },

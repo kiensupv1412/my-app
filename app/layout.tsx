@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import { AppToastProvider } from '@/components/providers/app-toast';
 import { RootDataProvider } from '@/components/providers/root-data';
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -28,35 +29,35 @@ export const metadata: Metadata = {
 
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [articles, categories] = await Promise.all([get('/data'), get('/categories')]);
+  const [articles, categories, media] = await Promise.all([get('/article'), get('/article/categories'), get('/media')]);
 
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <RootDataProvider value={{ articles, categories }}>
-          <SidebarProvider
-            style={
-              {
-                "--sidebar-width": "calc(var(--spacing) * 72)",
-                "--header-height": "calc(var(--spacing) * 12)",
-              } as React.CSSProperties
-            }
-          >
-            {/* Sidebar mặc định */}
-            <AppSidebar variant="inset" />
+        <AppToastProvider>
+          <RootDataProvider value={{ articles, categories, media }}>
+            <SidebarProvider
+              style={
+                {
+                  "--sidebar-width": "calc(var(--spacing) * 72)",
+                  "--header-height": "calc(var(--spacing) * 12)",
+                } as React.CSSProperties
+              }
+            >
+              {/* Sidebar mặc định */}
+              <AppSidebar variant="inset" />
 
-            {/* Vùng chính: header + nội dung =>*/}
-            <SidebarInset>
-              <SiteHeader />
-              <div className="flex flex-1 flex-col">
+              {/* Vùng chính: header + nội dung =>*/}
+              <SidebarInset>
+                <SiteHeader />
                 {children}
-              </div>
-            </SidebarInset>
-            {/* ========= */}
-          </SidebarProvider>
-        </RootDataProvider>
+              </SidebarInset>
+              {/* ========= */}
+            </SidebarProvider>
+          </RootDataProvider>
+        </AppToastProvider>
       </body>
     </html>
   );

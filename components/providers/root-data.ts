@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
 
-export type RootData = { articles: any[]; categories: any[]; };
+export type RootData = { articles: any[]; categories: any[]; media:any[]};
 const Ctx = React.createContext<RootData | null>(null);
 
 type RootDataProviderProps = { value: RootData; children: React.ReactNode; };

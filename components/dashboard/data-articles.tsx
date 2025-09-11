@@ -1,24 +1,6 @@
 "use client"
 
-import {
-  DndContext,
-  KeyboardSensor,
-  MouseSensor,
-  TouchSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type UniqueIdentifier,
-} from "@dnd-kit/core"
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers"
-import {
-  SortableContext,
-  arrayMove,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
+import { useAppToast } from '@/components/providers/app-toast'
 import {
   IconChevronDown,
   IconChevronLeft,
@@ -27,16 +9,15 @@ import {
   IconChevronsRight,
   IconCircleCheckFilled,
   IconDotsVertical,
-  IconGripVertical,
+  IconEyeOff,
   IconLayoutColumns,
-  IconLoader,
   IconPlus,
+  IconTrash,
   IconTrendingUp
 } from "@tabler/icons-react"
 import {
   ColumnDef,
   ColumnFiltersState,
-  Row,
   SortingState,
   VisibilityState,
   flexRender,
@@ -46,7 +27,7 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  useReactTable,
+  useReactTable
 } from "@tanstack/react-table"
 import * as React from "react"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
@@ -60,7 +41,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Drawer,
   DrawerClose,
@@ -77,7 +57,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -106,196 +86,186 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { ConfirmDeleteModal } from "../modals/confirm-delete"
+
+function formatDate(value: string | Date, opts: Intl.DateTimeFormatOptions = {}) {
+  const date = value instanceof Date ? value : new Date(value)
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    ...opts,
+  }).format(date)
+}
 
 export const schema = z.object({
   id: z.number(),
   title: z.string(),
   category_name: z.string(),
   status: z.string(),
-  target: z.string(),
-  limit: z.string(),
+  thumb: z.string(),
+  updated_at: z.string(),
   reviewer: z.string(),
 })
-
-// Create a separate component for the drag handle
-function DragHandle({ id }: { id: number }) {
-  const { attributes, listeners } = useSortable({
-    id,
-  })
-
-  return (
-    <Button
-      {...attributes}
-      {...listeners}
-      variant="ghost"
-      size="icon"
-      className="text-muted-foreground size-7 hover:bg-transparent"
-    >
-      <IconGripVertical className="text-muted-foreground size-3" />
-      <span className="sr-only">Drag to reorder</span>
-    </Button>
-  )
-}
 
 function getColumns(categories: z.infer<typeof schemaCategory>[]): ColumnDef<z.infer<typeof schema>>[] {
   return [
     {
-      id: "drag",
-      header: () => null,
-      cell: ({ row }) => <DragHandle id={row.original.id} />,
+      header: "id",
+      cell: ({ row }) =>
+        <span className="text-sm text-primary">{row.original.id}</span>,
+      meta: { className: "text-center" }
     },
     {
-      id: "select",
-      header: ({ table }) => (
-        <div className="flex items-center justify-center">
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
-            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-            aria-label="Select all"
-          />
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center justify-center">
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Select row"
-          />
-        </div>
-      ),
-      enableSorting: false,
-      enableHiding: false,
+      header: "Thumbnail",
+      cell: ({ row }) =>
+        <img src={row.original.thumb}
+          alt={row.original.title ?? "thumbnail"}
+          className="h-auto max-h-16 w-24 object-cover rounded-md border"
+        />,
+      // <IconLoader/>
+      meta: { className: "align-middle" }
     },
     {
-      accessorKey: "header",
-      header: "Header",
+      accessorKey: "title",
+      header: "Title",
       cell: ({ row }) => {
         return <TableCellViewer item={row.original} categories={categories} />
       },
       enableHiding: false,
     },
     {
-      accessorKey: "type",
+      accessorKey: "category_name",
       header: "Category",
       cell: ({ row }) => (
         <div className="w-32">
-          <Badge variant="outline" className="text-muted-foreground px-1.5">
+          <Badge variant="secondary" className="text-muted-foreground px-1.5">
             {row.original.category_name}
           </Badge>
         </div>
       ),
     },
     {
-      accessorKey: "status",
       header: "Status",
       cell: ({ row }) => (
-        <Badge variant="outline" className="text-muted-foreground px-1.5">
-          {row.original.status === "Done" ? (
+        <Badge variant="secondary" className="text-muted-foreground px-1.5">
+          {row.original.status === "yes" ? (
             <IconCircleCheckFilled className="fill-green-500 dark:fill-green-400" />
-          ) : (
-            <IconLoader />
-          )}
-          {row.original.status}
+          ) : row.original.status === "draft" ? (
+            <IconEyeOff />
+          ) : <IconTrash />}
+          {/* {row.original.status} */}
         </Badge>
       ),
     },
     {
-      accessorKey: "reviewer",
-      header: "Reviewer",
-      cell: ({ row }) => {
-        const isAssigned = row.original.reviewer !== "Assign reviewer"
+      header: "Publishing date",
+      cell: ({ row }) =>
+        <span className="text-sm text-primary">{formatDate(row.original.updated_at)}</span>,
+      meta: { className: "" }
+    },
 
-        if (isAssigned) {
-          return row.original.reviewer
+
+    // {
+    //   header: "Reviewer",
+    //   cell: ({ row }) => {
+    //     const isAssigned = row.original.reviewer !== "Assign reviewer"
+
+    //     // if (isAssigned) {
+    //     //   return row.original.reviewer
+    //     // }
+
+    //     return (
+    //       <>
+    //         <Label htmlFor={`${row.original.id}-reviewer`} className="sr-only">
+    //           Reviewer
+    //         </Label>
+    //         <Select>
+    //           <SelectTrigger
+    //             className="w-38 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate"
+    //             size="sm"
+    //             id={`${row.original.id}-reviewer`}
+    //           >
+    //             <SelectValue placeholder="Assign reviewer" />
+    //           </SelectTrigger>
+    //           <SelectContent align="end">
+    //             <SelectItem value="Eddie Lake">Eddie Lake</SelectItem>
+    //             <SelectItem value="Jamik Tashpulatov">
+    //               Jamik Tashpulatov
+    //             </SelectItem>
+    //           </SelectContent>
+    //         </Select>
+    //       </>
+    //     )
+    //   },
+    // },
+    {
+      id: 'actions',
+      cell: ({ row, table }) => {
+        const router = useRouter();
+        const articleId = row.original.id;
+
+        const [open, setOpen] = React.useState(false);
+        const [loading, setLoading] = React.useState(false);
+
+        async function handleConfirm() {
+          try {
+            setLoading(true);
+            await table.options.meta?.onDelete?.(articleId);
+            setOpen(false);
+          } finally {
+            setLoading(false);
+          }
         }
 
         return (
           <>
-            <Label htmlFor={`${row.original.id}-reviewer`} className="sr-only">
-              Reviewer
-            </Label>
-            <Select>
-              <SelectTrigger
-                className="w-38 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate"
-                size="sm"
-                id={`${row.original.id}-reviewer`}
-              >
-                <SelectValue placeholder="Assign reviewer" />
-              </SelectTrigger>
-              <SelectContent align="end">
-                <SelectItem value="Eddie Lake">Eddie Lake</SelectItem>
-                <SelectItem value="Jamik Tashpulatov">
-                  Jamik Tashpulatov
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                  size="icon"
+                >
+                  <IconDotsVertical />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-36">
+                <DropdownMenuItem onClick={() => router.push(`/news/edit/${articleId}`)}>
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem>Make a copy</DropdownMenuItem>
+                <DropdownMenuItem>Favorite</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setOpen(true)}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Modal xác nhận xoá */}
+            <ConfirmDeleteModal
+              open={open}
+              onOpenChange={setOpen}
+              onConfirm={handleConfirm}
+              loading={loading}
+              title="Xoá bài viết?"
+              description={`Bạn chắc chắn muốn xoá bài #${articleId}? Hành động này không thể hoàn tác.`}
+              confirmText="Xoá"
+              cancelText="Huỷ"
+            />
           </>
-        )
+        );
       },
-    },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const router = useRouter()
-        const articleId = row.original.id
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
-                size="icon"
-              >
-                <IconDotsVertical />
-                <span className="sr-only">Open menu</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-32">
-              <DropdownMenuItem onClick={() => router.push(`/news/edit/${articleId}`)}>
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem>Make a copy</DropdownMenuItem>
-              <DropdownMenuItem>Favorite</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )
-      },
-    },
+    }
   ]
 }
 
-function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
-  const { transform, transition, setNodeRef, isDragging } = useSortable({
-    id: row.original.id,
-  })
-
-  return (
-    <TableRow
-      data-state={row.getIsSelected() && "selected"}
-      data-dragging={isDragging}
-      ref={setNodeRef}
-      className="relative z-0 data-[dragging=true]:z-10 data-[dragging=true]:opacity-80"
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition: transition,
-      }}
-    >
-      {row.getVisibleCells().map((cell) => (
-        <TableCell key={cell.id}>
-          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-        </TableCell>
-      ))}
-    </TableRow>
-  )
-}
-
-export function DataTable({
+export function DataArticles({
   data: initialData,
   categories: initialCategories
 }: {
@@ -313,19 +283,28 @@ export function DataTable({
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: 14,
   })
-  const sortableId = React.useId()
-  const sensors = useSensors(
-    useSensor(MouseSensor, {}),
-    useSensor(TouchSensor, {}),
-    useSensor(KeyboardSensor, {})
-  )
+  const { success, error } = useAppToast();
 
-  const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => data?.map(({ id }) => id) || [],
-    [data]
-  )
+  const onDelete = React.useCallback((id: number) => {
+    setData(prev => {
+      const next = prev.filter(x => x.id !== id)
+
+      // Cập nhật pageIndex an toàn theo kích thước mới
+      setPagination(p => {
+        const total = next.length
+        const pageCount = Math.max(1, Math.ceil(total / p.pageSize))
+        // nếu trang hiện tại vượt quá page cuối -> kéo về trang cuối
+        const newIndex = Math.min(p.pageIndex, pageCount - 1)
+        return { ...p, pageIndex: newIndex }
+      })
+
+      return next
+    })
+    success('Đã xoá bài viết');
+
+  }, [])
 
   const table = useReactTable({
     data,
@@ -337,6 +316,8 @@ export function DataTable({
       columnFilters,
       pagination,
     },
+    autoResetPageIndex: false,   // 👈 quan trọng
+
     getRowId: (row) => row.id.toString(),
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
@@ -350,86 +331,73 @@ export function DataTable({
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    meta: { onDelete },
   })
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (active && over && active.id !== over.id) {
-      setData((data) => {
-        const oldIndex = dataIds.indexOf(active.id)
-        const newIndex = dataIds.indexOf(over.id)
-        return arrayMove(data, oldIndex, newIndex)
-      })
-    }
-  }
-
 
   return (
     <Tabs
-      defaultValue="outline"
+      defaultValue="all"
       className="w-full flex-col justify-start gap-4"
     >
       <div className="flex items-center justify-between px-4 lg:px-6">
-        <Label htmlFor="view-selector" className="sr-only">
-          View
-        </Label>
-        <Select defaultValue="outline">
-          <SelectTrigger
-            className="flex w-fit @4xl/main:hidden"
-            size="sm"
-            id="view-selector"
-          >
-            <SelectValue placeholder="Select a view" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="outline">Outline</SelectItem>
-            <SelectItem value="past-performance">Past Performance</SelectItem>
-            <SelectItem value="key-personnel">Key Personnel</SelectItem>
-            <SelectItem value="focus-documents">Focus Documents</SelectItem>
-          </SelectContent>
-        </Select>
         <TabsList className="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex">
-          <TabsTrigger value="outline">Outline</TabsTrigger>
-          <TabsTrigger value="past-performance">
-            Past Performance <Badge variant="secondary">3</Badge>
+          <TabsTrigger value="all">
+            All <span className="secondary">{data.length}</span>
           </TabsTrigger>
-          <TabsTrigger value="key-personnel">
-            Key Personnel <Badge variant="secondary">2</Badge>
+          <TabsTrigger value="favorite">
+            Favorite <Badge variant="secondary">3</Badge>
           </TabsTrigger>
-          <TabsTrigger value="focus-documents">Focus Documents</TabsTrigger>
+          <TabsTrigger value="top-view">
+            Top Views <Badge variant="secondary">2</Badge>
+          </TabsTrigger>
         </TabsList>
+
         <div className="flex items-center gap-2">
+          <Input
+            placeholder="Search title..."
+            value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
+            onChange={(e) => {
+              table.getColumn("title")?.setFilterValue(e.target.value);
+              table.setPageIndex(0);
+            }}
+            className="h-8 w-[200px] lg:w-[250px]"
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <IconLayoutColumns />
-                <span className="hidden lg:inline">Customize Columns</span>
-                <span className="lg:hidden">Columns</span>
+                <span className="hidden lg:inline">Danh Mục</span>
                 <IconChevronDown />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              {table
-                .getAllColumns()
-                .filter(
-                  (column) =>
-                    typeof column.accessorFn !== "undefined" &&
-                    column.getCanHide()
-                )
-                .map((column) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      className="capitalize"
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) =>
-                        column.toggleVisibility(!!value)
+              <DropdownMenuItem
+                onClick={() => table.getColumn('category_name')?.setFilterValue(undefined)}
+                className="font-medium"
+              >
+                Tất cả
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {categories.map((cat) => {
+                const isActive = table.getColumn('category_name')?.getFilterValue() === cat.name
+                return (
+                  <DropdownMenuCheckboxItem
+                    key={cat.id}
+                    checked={!!isActive}
+                    // chọn 1 category sẽ set filter về đúng tên category
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        table.getColumn('category_name')?.setFilterValue(cat.name)
+                      } else {
+                        table.getColumn('category_name')?.setFilterValue(undefined)
                       }
-                    >
-                      {column.id}
-                    </DropdownMenuCheckboxItem>
-                  )
-                })}
+                    }}
+                    className="capitalize"
+                  >
+                    {cat.name}
+                  </DropdownMenuCheckboxItem>
+                )
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant="outline" size="sm">
@@ -441,59 +409,50 @@ export function DataTable({
         </div>
       </div>
       <TabsContent
-        value="outline"
+        value="all"
         className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
       >
         <div className="overflow-hidden rounded-lg border">
-          <DndContext
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
-            onDragEnd={handleDragEnd}
-            sensors={sensors}
-            id={sortableId}
-          >
-            <Table>
-              <TableHeader className="bg-muted sticky top-0 z-10">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead key={header.id} colSpan={header.colSpan}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                        </TableHead>
-                      )
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                {table.getRowModel().rows?.length ? (
-                  <SortableContext
-                    items={dataIds}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {table.getRowModel().rows.map((row) => (
-                      <DraggableRow key={row.id} row={row} />
+          <Table>
+            <TableHeader className="bg-muted sticky top-0 z-10">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    return (
+                      <TableHead key={header.id} colSpan={header.colSpan}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                      </TableHead>
+                    )
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody className="**:data-[slot=table-cell]:first:w-8">
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}
+                        className={cell.column.columnDef.meta?.className}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
                     ))}
-                  </SortableContext>
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={table.getAllColumns().length}
-                      className="h-24 text-center"
-                    >
-                      No results.
-                    </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </DndContext>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={table.getAllColumns().length} className="h-24 text-center">
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
         <div className="flex items-center justify-between px-4">
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
@@ -503,7 +462,7 @@ export function DataTable({
           <div className="flex w-full items-center gap-8 lg:w-fit">
             <div className="hidden items-center gap-2 lg:flex">
               <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                Rows per page
+                per page
               </Label>
               <Select
                 value={`${table.getState().pagination.pageSize}`}
@@ -536,7 +495,7 @@ export function DataTable({
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
               >
-                <span className="sr-only">Go to first page</span>
+                <span className="sr-only">first page</span>
                 <IconChevronsLeft />
               </Button>
               <Button
@@ -546,7 +505,7 @@ export function DataTable({
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
               >
-                <span className="sr-only">Go to previous page</span>
+                <span className="sr-only">previous page</span>
                 <IconChevronLeft />
               </Button>
               <Button
@@ -556,7 +515,7 @@ export function DataTable({
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
               >
-                <span className="sr-only">Go to next page</span>
+                <span className="sr-only">next page</span>
                 <IconChevronRight />
               </Button>
               <Button
@@ -566,7 +525,7 @@ export function DataTable({
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                 disabled={!table.getCanNextPage()}
               >
-                <span className="sr-only">Go to last page</span>
+                <span className="sr-only">last page</span>
                 <IconChevronsRight />
               </Button>
             </div>

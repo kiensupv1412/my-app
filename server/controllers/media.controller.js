@@ -102,8 +102,7 @@ async function uploadOne(req, res, next) {
             folder_id,
             media_type: f.mimetype.indexOf('video/') === 0 ? 'video' : 'image',
             uuid: crypto.randomUUID ?
-                crypto.randomUUID() :
-                Date.now() + Math.random().toString(36).slice(2, 8),
+                crypto.randomUUID() : Date.now() + Math.random().toString(36).slice(2, 8),
             name: f.originalname,
             file_name: f.filename,
             file_url: url,
@@ -152,8 +151,7 @@ async function uploadMany(req, res, next) {
                 folder_id,
                 media_type: f.mimetype.indexOf('video/') === 0 ? 'video' : 'image',
                 uuid: crypto.randomUUID ?
-                    crypto.randomUUID() :
-                    Date.now() + Math.random().toString(36).slice(2, 8),
+                    crypto.randomUUID() : Date.now() + Math.random().toString(36).slice(2, 8),
                 name: f.originalname,
                 file_name: f.filename,
                 file_url: url,
@@ -179,21 +177,28 @@ async function uploadMany(req, res, next) {
 
 async function list(req, res, next) {
     try {
-        const page = Math.max(parseInt(req.query.page) || 1, 1);
-        const pageSize = Math.min(Math.max(parseInt(req.query.pageSize) || 20, 1), 100);
-        const q = (req.query.q || '').trim();
-        const media_type = req.query.media_type || undefined;
+        const page = Math.max(parseInt(req.query.page) || 1, 1)
+        const pageSize = Math.min(Math.max(parseInt(req.query.pageSize) || 20, 1), 100)
+        const q = (req.query.q || '').trim()
+        const media_type = req.query.media_type || undefined
+        const site = req.query.site ? Number(req.query.site) : undefined
+        const user_id = req.query.user_id ? Number(req.query.user_id) : undefined
 
-        const site = req.query.site ? Number(req.query.site) : undefined;
-        const user_id = req.query.user_id ? Number(req.query.user_id) : undefined;
+        let folder_id = undefined
+        if (req.query.folder_id !== undefined) {
+            const raw = String(req.query.folder_id).toLowerCase()
+            folder_id = (raw === 'null') ? null : Number(raw)
+            if (raw !== 'null' && !Number.isFinite(folder_id)) {
+                // nếu param rác, bỏ lọc
+                folder_id = undefined
+            }
+        }
 
-        const total = await countMedia({ q, media_type, site, user_id });
-        const rows = await listMedia({ page, pageSize, q, media_type, site, user_id });
+        const total = await countMedia({ q, media_type, site, user_id, folder_id })
+        const rows = await listMedia({ page, pageSize, q, media_type, site, user_id, folder_id })
 
-        res.json({ page, pageSize, total, rows });
-    } catch (e) {
-        next(e);
-    }
+        res.json({ page, pageSize, total, rows })
+    } catch (e) { next(e) }
 }
 
 async function remove(req, res, next) {

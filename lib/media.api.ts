@@ -182,45 +182,38 @@ export async function apiDeleteFolder(id: number): Promise<{ ok: boolean; id: nu
 /* ===========================
    MEDIA
    =========================== */
-export async function apiListMedia(params: {
-  page?: number;
-  pageSize?: number;
-  q?: string;
-  folder_id?: number | null;
-}): Promise<{ page: number; pageSize: number; total: number; rows: MediaItem[] }> {
-  const base = apiBase() + '/media';
-  const url = base +
-    qs({
+   export async function apiListMedia(params: {
+    page?: number;
+    pageSize?: number;
+    q?: string;
+    // CHO PHÉP 'null' string để server hiểu IS NULL
+    folder_id?: number | null | 'null';
+  }): Promise<{ page: number; pageSize: number; total: number; rows: MediaItem[] }> {
+    const base = apiBase() + '/media';
+    const url = base + qs({
       page: params.page !== undefined ? Number(params.page) : undefined,
       pageSize: params.pageSize !== undefined ? Number(params.pageSize) : undefined,
       q: params.q !== undefined ? String(params.q) : undefined,
       folder_id:
-        params.folder_id !== undefined && params.folder_id !== null
-          ? Number(params.folder_id)
-          : undefined,
-    });
-
-  const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-  const payload = await parseJsonOrText(res);
-  if (!res.ok) {
-    const msg =
-      typeof payload === 'string'
-        ? payload
-        : (payload && (payload as any).error) || 'List media failed';
-    throw new Error(String(msg));
+        params.folder_id === null ? 'null'
+        : (typeof params.folder_id === 'string' ? params.folder_id
+        : (typeof params.folder_id === 'number' ? params.folder_id : undefined)),
+    })
+    const res = await fetch(url, { method: 'GET', cache: 'no-store' })
+    const payload = await parseJsonOrText(res)
+    if (!res.ok) {
+      const msg = typeof payload === 'string' ? payload : (payload && (payload as any).error ? String((payload as any).error) : 'List media failed')
+      throw new Error(msg)
+    }
+    const json = payload as ListMediaResp
+    const rows = Array.isArray(json.rows) ? json.rows : []
+    return {
+      page: Number(json.page || 1),
+      pageSize: Number(json.pageSize || rows.length || 0),
+      total: Number(json.total || rows.length || 0),
+      rows: rows.map(normalizeMediaItem).filter(x => x && x.id && x.file_url)
+    }
   }
-
-  const json = payload as ListMediaResp;
-  const rows = Array.isArray(json.rows) ? json.rows : [];
-  return {
-    page: Number(json.page || 1),
-    pageSize: Number(json.pageSize || rows.length || 0),
-    total: Number(json.total || rows.length || 0),
-    rows: rows
-      .map((m) => normalizeMediaItem(m))
-      .filter((x) => x && x.id && x.file_url),
-  };
-}
 
 export async function apiDeleteMedia(id: number): Promise<{ mess?: string; ok?: boolean; id: number }> {
   const url = apiBase() + '/media/' + String(id);
@@ -270,14 +263,6 @@ export async function apiUpload(
 }
 
 /** Convenience wrapper: lấy media theo folder_id (null = root) */
-export async function apiListMediaByFolder(
-  folder_id: number | null,
-  opts?: { page?: number; pageSize?: number; q?: string },
-) {
-  return apiListMedia({
-    folder_id,
-    page: opts?.page,
-    pageSize: opts?.pageSize,
-    q: opts?.q,
-  });
+export async function apiListMediaByFolder(folderId: number | null) {
+  return apiListMedia({ folder_id: (folderId === null ? 'null' : folderId) })
 }

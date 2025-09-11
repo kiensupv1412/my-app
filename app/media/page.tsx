@@ -83,15 +83,15 @@ export default function MediaPage() {
     React.useEffect(() => {
         (async () => {
             try {
-                const resp = await apiListMediaByFolder(currentFolderId);
-                const list = Array.isArray(resp.rows) ? resp.rows : [];
-                // resp.rows đã normalize trong api; vẫn đảm bảo filter chắc chắn
-                setItems(list.filter((x) => x && x.id && x.file_url));
+                const resp = await apiListMediaByFolder(currentFolderId) // sẽ gửi 'null' khi root
+                const list = Array.isArray(resp.rows) ? resp.rows : []
+                setItems(list.filter((x) => x && x.id && x.file_url))
             } catch (e) {
-                console.error('[media by folder]', e);
+                console.error('[media by folder]', e)
             }
-        })();
-    }, [currentFolderId]);
+        })()
+    }, [currentFolderId])
+
     async function handleCreateFolder() {
         const name = prompt('Tên folder mới:');
         if (!name) return;

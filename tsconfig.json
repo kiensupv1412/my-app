@@ -22,6 +22,19 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "server/modules/gsc/shared/index.js", "server/modules/gsc/shared/gsc.js", "server/modules/gsc/shared/auth.js", "server/modules/gsc/bin.js", "server/modules/gsc/cli.js", "server/modules/gsc/index.js"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "server/modules/gsc/shared/index.js",
+    "server/modules/gsc/shared/gsc.js",
+    "server/modules/gsc/shared/auth.js",
+    "server/modules/gsc/bin.js",
+    "server/modules/gsc/cli.js",
+    "server/modules/gsc/index.js",
+    "server/modules/gsc/shared/utils.js",
+    "server/modules/gsc/shared/types.js"
+  ],
   "exclude": ["node_modules"]
 }

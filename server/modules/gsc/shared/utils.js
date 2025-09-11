@@ -4,7 +4,7 @@
  * @param size The size of each chunk.
  * @returns An array of chunks.
  */
-const createChunks = (arr: any[], size: number) =>
+const createChunks = (arr, size) =>
   Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
 
 /**
@@ -14,12 +14,7 @@ const createChunks = (arr: any[], size: number) =>
  * @param batchSize The size of each batch.
  * @param onBatchComplete The callback function invoked upon completion of each batch.
  */
-export async function batch(
-  task: (url: string) => void,
-  items: string[],
-  batchSize: number,
-  onBatchComplete: (batchIndex: number, batchCount: number) => void
-) {
+export async function batch(task, items, batchSize, onBatchComplete) {
   const chunks = createChunks(items, batchSize);
   for (let i = 0; i < chunks.length; i++) {
     await Promise.all(chunks[i].map(task));
@@ -35,7 +30,7 @@ export async function batch(
  * @returns A Promise resolving to the fetched response.
  * @throws Error when retries are exhausted or server error occurs.
  */
-export async function fetchRetry(url: string, options: RequestInit, retries: number = 5) {
+export async function fetchRetry(url, options, retries = 5) {
   try {
     const response = await fetch(url, options);
     if (response.status >= 500) {

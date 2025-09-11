@@ -1,0 +1,41 @@
+{
+  "name": "google-indexing-script",
+  "description": "Script to get your site indexed on Google in less than 48 hours",
+  "version": "0.4.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "google-indexing-script": "./dist/bin.js",
+    "gis": "./dist/bin.js"
+  },
+  "keywords": [
+    "google",
+    "indexing",
+    "search-console",
+    "sitemap",
+    "seo",
+    "google-search",
+    "cli",
+    "typescript"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "index": "ts-node ./src/cli.ts",
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "googleapis": "131.0.0",
+    "picocolors": "^1.0.1",
+    "sitemapper": "3.2.8"
+  },
+  "prettier": {
+    "printWidth": 120
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "tsup": "^8.0.2",
+    "typescript": "^5.3.3"
+  }
+}

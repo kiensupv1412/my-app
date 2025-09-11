@@ -1,7 +1,7 @@
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppHeader } from '@/components/layouts/header';
+import { AppSidebar } from '@/components/layouts/sidebar';
 import { AppToastProvider } from '@/components/providers/app-toast';
 import { RootDataProvider } from '@/components/providers/root-data';
-import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getData } from '@/lib/api';
 import type { Metadata } from "next";
@@ -46,15 +46,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 } as React.CSSProperties
               }
             >
-              {/* Sidebar mặc định */}
               <AppSidebar variant="inset" />
-
-              {/* Vùng chính: header + nội dung =>*/}
               <SidebarInset>
-                <SiteHeader />
+                <AppHeader />
                 {children}
               </SidebarInset>
-              {/* ========= */}
             </SidebarProvider>
           </RootDataProvider>
         </AppToastProvider>

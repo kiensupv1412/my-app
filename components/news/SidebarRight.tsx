@@ -11,11 +11,13 @@ type SidebarRightProps = React.ComponentProps<'aside'> & {
         title?: string;
         slug?: string;
         thumb?: string;
-    };
+    },
+    categories?: any;
 };
 export default function SidebarRight({
     className,
     article,
+    categories,
     ...props
 }: SidebarRightProps) {
     return (

@@ -1,3 +1,6 @@
+/*
+ * path: components/news/NewsEditorPage.tsx
+ */
 'use client';
 
 import { PlateEditor } from '@/components/editor/plate-editor';
@@ -13,6 +16,41 @@ type Props = {
     articleId?: string; // chỉ cần cho edit
 };
 
+// helper: đảm bảo luôn trả về Slate Value (mảng nodes)
+function toSlateValue(raw: unknown) {
+    const EMPTY: any[] = [{ type: 'p', children: [{ text: '' }] }];
+
+    if (!raw && raw !== 0) return EMPTY;
+
+    // đã là mảng nodes
+    if (Array.isArray(raw)) return raw;
+
+    // string: có thể là JSON chuỗi hoá
+    if (typeof raw === 'string') {
+        const s = raw.trim();
+        if (!s) return EMPTY;
+
+        // thử parse JSON
+        try {
+            const parsed = JSON.parse(s);
+            if (Array.isArray(parsed)) return parsed;
+        } catch {
+            // không phải JSON → coi như plain text
+            return [{ type: 'p', children: [{ text: s }] }];
+        }
+    }
+
+    // object (lỡ đâu body lưu ở field khác)
+    if (typeof raw === 'object') {
+        // nếu có dạng { nodes: [...] }
+        const maybe = (raw as any)?.nodes;
+        if (Array.isArray(maybe)) return maybe;
+    }
+
+    // fallback
+    return EMPTY;
+}
+
 export default function NewsEditorScreen({ mode, articleId }: Props) {
     const { articles, categories } = useRootData();
 
@@ -25,10 +63,9 @@ export default function NewsEditorScreen({ mode, articleId }: Props) {
             id: undefined,
             title: '',
             description: '',
-            content: null,
+            body: null,
             categoryId: categories?.[0]?.id ?? null,
-            status: 'draft',
-            // thêm field mặc định khác nếu bạn cần
+            status: '',
         };
     }, [mode, articleId, articles, categories]);
 
@@ -36,19 +73,20 @@ export default function NewsEditorScreen({ mode, articleId }: Props) {
         return <div className="p-6">Article not found</div>;
     }
 
+    const slateValue = useMemo(() => toSlateValue(article?.body ?? null), [article?.body]);
+
     return (
         <div className="flex h-full">
             <main className="flex-1 min-w-0">
                 <div className="@container/main flex flex-col gap-4">
-                    {/* Description (Inline) */}
                     <InlineEditor description={article?.description ?? ''} />
-
-                    {/* Content editor */}
                     <SettingsProvider>
-                        <PlateEditor />
+                        {/* truyền Slate Value đã chuẩn hoá */}
+                        <PlateEditor content={slateValue} />
                     </SettingsProvider>
                 </div>
             </main>
+
             <SidebarRight
                 article={article as any}
                 categories={categories}

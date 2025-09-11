@@ -85,8 +85,7 @@ export const index = async (input = process.argv[2], options) => {
     console.log(`👉 Found ${pages.length} URLs in the provided list`);
   }
 
-  const statusPerUrl = existsSync(cachePath) ?
-    JSON.parse(readFileSync(cachePath, "utf8")) : {};
+  const statusPerUrl = existsSync(cachePath) ? JSON.parse(readFileSync(cachePath, "utf8")) : {};
   const pagesPerStatus = {
     [Status.SubmittedAndIndexed]: [],
     [Status.DuplicateWithoutUserSelectedCanonical]: [],
@@ -129,7 +128,7 @@ export const index = async (input = process.argv[2], options) => {
     50,
     (batchIndex, batchCount) => {
       console.log(`📦 Batch ${batchIndex + 1} of ${batchCount} complete`);
-    }
+    },
   );
 
   console.log(``);
@@ -145,7 +144,7 @@ export const index = async (input = process.argv[2], options) => {
   console.log("");
 
   const indexablePages = Object.entries(pagesPerStatus).flatMap(([status, pages]) =>
-    indexableStatuses.includes(status) ? pages : []
+    indexableStatuses.includes(status) ? pages : [],
   );
 
   if (indexablePages.length === 0) {

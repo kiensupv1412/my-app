@@ -9,7 +9,6 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-
 # testing
 /coverage
 
@@ -36,6 +35,7 @@ yarn-error.log*
 # vercel
 .vercel
 
+.zip
 # typescript
 *.tsbuildinfo
 next-env.d.ts

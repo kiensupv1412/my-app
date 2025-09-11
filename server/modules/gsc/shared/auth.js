@@ -25,7 +25,7 @@ export async function getAccessToken(client_email, private_key, customPath) {
     }
 
     const key = JSON.parse(
-      fs.readFileSync(!!customPath && isCustomFile ? customPath : isFile ? filePath : filePathFromHome, "utf8")
+      fs.readFileSync(!!customPath && isCustomFile ? customPath : isFile ? filePath : filePathFromHome, "utf8"),
     );
     client_email = key.client_email;
     private_key = key.private_key;
@@ -46,8 +46,9 @@ export async function getAccessToken(client_email, private_key, customPath) {
   const jwtClient = new google.auth.JWT(
     client_email,
     undefined,
-    private_key, ["https://www.googleapis.com/auth/webmasters.readonly", "https://www.googleapis.com/auth/indexing"],
-    undefined
+    private_key,
+    ["https://www.googleapis.com/auth/webmasters.readonly", "https://www.googleapis.com/auth/indexing"],
+    undefined,
   );
 
   const tokens = await jwtClient.authorize();

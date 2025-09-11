@@ -8,7 +8,7 @@ import { webmasters_v3 } from "googleapis";
  * @param siteUrl The URL of the site for which to retrieve the list of sitemaps.
  * @returns An array containing the paths of the sitemaps associated with the site URL.
  */
-async function getSitemapsList(accessToken: string, siteUrl: string) {
+async function getSitemapsList(accessToken, siteUrl) {
   const url = `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps`;
 
   const response = await fetchRetry(url, {
@@ -30,14 +30,14 @@ async function getSitemapsList(accessToken: string, siteUrl: string) {
     return [];
   }
 
-  const body: webmasters_v3.Schema$SitemapsListResponse = await response.json();
+  const body = await response.json();
 
   if (!body.sitemap) {
     console.error("❌ No sitemaps found, add them to Google Search Console and try again.");
     return [];
   }
 
-  return body.sitemap.filter((x) => x.path !== undefined && x.path !== null).map((x) => x.path as string);
+  return body.sitemap.filter((x) => x.path !== undefined && x.path !== null).map((x) => x.path);
 }
 
 /**
@@ -46,10 +46,10 @@ async function getSitemapsList(accessToken: string, siteUrl: string) {
  * @param siteUrl The URL of the site for which to retrieve the sitemap pages.
  * @returns An array containing the list of sitemaps and an array of unique page URLs extracted from those sitemaps.
  */
-export async function getSitemapPages(accessToken: string, siteUrl: string) {
+export async function getSitemapPages(accessToken, siteUrl) {
   const sitemaps = await getSitemapsList(accessToken, siteUrl);
 
-  let pages: string[] = [];
+  let pages = [];
   for (const url of sitemaps) {
     const Google = new Sitemapper({
       url,

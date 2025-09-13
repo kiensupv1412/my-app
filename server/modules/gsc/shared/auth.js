@@ -1,7 +1,7 @@
-import fs from "fs";
-import { google } from "googleapis";
-import os from "os";
-import path from "path";
+const fs = require("fs");
+const { google } = require("googleapis");
+const os = require("os");
+const path = require("path");
 
 /**
  * Retrieves an access token for Google APIs using service account credentials.
@@ -10,10 +10,10 @@ import path from "path";
  * @param customPath - (Optional) Custom path to the service account JSON file.
  * @returns The access token.
  */
-export async function getAccessToken(client_email, private_key, customPath) {
+async function getAccessToken(client_email, private_key, customPath) {
   if (!client_email && !private_key) {
     const filePath = "service_account.json";
-    const filePathFromHome = path.join(os.homedir(), ".gis", "service_account.json");
+    const filePathFromHome = path.join(__dirname, "../service_account.json");
     const isFile = fs.existsSync(filePath);
     const isFileFromHome = fs.existsSync(filePathFromHome);
     const isCustomFile = !!customPath && fs.existsSync(customPath);
@@ -21,7 +21,8 @@ export async function getAccessToken(client_email, private_key, customPath) {
     if (!isFile && !isFileFromHome && !isCustomFile) {
       console.error(`❌ ${filePath} not found, please follow the instructions in README.md`);
       console.error("");
-      process.exit(1);
+      const msg = await response.text().catch(() => String(response.status));
+      throw new Error(`GSC error ${response.status}: ${msg}`);
     }
 
     const key = JSON.parse(
@@ -33,24 +34,26 @@ export async function getAccessToken(client_email, private_key, customPath) {
     if (!client_email) {
       console.error("❌ Missing client_email in service account credentials.");
       console.error("");
-      process.exit(1);
+      const msg = await response.text().catch(() => String(response.status));
+      throw new Error(`GSC error ${response.status}: ${msg}`);
     }
 
     if (!private_key) {
       console.error("❌ Missing private_key in service account credentials.");
       console.error("");
-      process.exit(1);
+      const msg = await response.text().catch(() => String(response.status));
+      throw new Error(`GSC error ${response.status}: ${msg}`);
     }
   }
 
-  const jwtClient = new google.auth.JWT(
-    client_email,
-    undefined,
-    private_key,
-    ["https://www.googleapis.com/auth/webmasters.readonly", "https://www.googleapis.com/auth/indexing"],
-    undefined,
-  );
+  const jwtClient = new google.auth.JWT({
+    email: client_email,
+    key: private_key,
+    scopes: ["https://www.googleapis.com/auth/webmasters.readonly", "https://www.googleapis.com/auth/indexing"],
+  });
 
   const tokens = await jwtClient.authorize();
   return tokens.access_token;
 }
+
+module.exports = { getAccessToken };

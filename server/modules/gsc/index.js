@@ -1,7 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import path from "path";
-import { getAccessToken } from "./shared/auth";
-import {
+/*
+ * path: server/modules/gsc/index.js
+ */
+
+const {
+  getAccessToken,
+  getSitemapPages,
+  Status,
+  batch,
   checkCustomUrls,
   checkSiteUrl,
   convertToFilePath,
@@ -10,29 +15,29 @@ import {
   getPageIndexingStatus,
   getPublishMetadata,
   requestIndexing,
-} from "./shared/gsc";
-import { getSitemapPages } from "./shared/sitemap";
-import { Status } from "./shared/types";
-import { batch } from "./shared/utils";
-
+  QUOTA,
+} = require("./shared");
+const { existsSync, mkdirSync, readFileSync, writeFileSync } = require("fs");
+const path = require("path");
 const CACHE_TIMEOUT = 1000 * 60 * 60 * 24 * 14; // 14 days
-export const QUOTA = {
-  rpm: {
-    retries: 3,
-    waitingTime: 60000, // 1 minute
-  },
-};
+// const QUOTA = {
+//   rpm: {
+//     retries: 3,
+//     waitingTime: 60000, // 1 minute
+//   },
+// };
 
 /**
  * Indexes the specified domain or site URL.
  * @param input - The domain or site URL to index.
  * @param options - (Optional) Additional options for indexing.
  */
-export const index = async (input = process.argv[2], options) => {
+const index = async (input = process.argv[2], options) => {
   if (!input) {
     console.error("❌ Please provide a domain or site URL as the first argument.");
     console.error("");
-    process.exit(1);
+    const msg = await response.text().catch(() => String(response.status));
+    throw new Error(`GSC error ${response.status}: ${msg}`);
   }
 
   if (!options.client_email) {
@@ -61,7 +66,8 @@ export const index = async (input = process.argv[2], options) => {
   if (!accessToken) {
     console.error("❌ Failed to get access token, check your service account credentials.");
     console.error("");
-    process.exit(1);
+    const msg = await response.text().catch(() => String(response.status));
+    throw new Error(`GSC error ${response.status}: ${msg}`);
   }
 
   siteUrl = await checkSiteUrl(accessToken, siteUrl);
@@ -74,7 +80,8 @@ export const index = async (input = process.argv[2], options) => {
     if (sitemaps.length === 0) {
       console.error("❌ No sitemaps found, add them to Google Search Console and try again.");
       console.error("");
-      process.exit(1);
+      const msg = await response.text().catch(() => String(response.status));
+      throw new Error(`GSC error ${response.status}: ${msg}`);
     }
 
     pages = pagesFromSitemaps;
@@ -174,4 +181,8 @@ export const index = async (input = process.argv[2], options) => {
   console.log(``);
 };
 
-export * from "./shared";
+// export cho CLI/worker dùng
+module.exports = {
+  index,
+  QUOTA,
+};

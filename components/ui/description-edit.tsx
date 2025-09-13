@@ -76,7 +76,7 @@ const TextEditor = React.memo(function TextEditor({
     return (
         <div
             ref={editorRef}
-            contentEditable
+            contentEditable={false}
             suppressContentEditableWarning
             onMouseDownCapture={onMouseDownCapture}
             onKeyDownCapture={onKeyDownCapture}

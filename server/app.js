@@ -6,8 +6,9 @@ const path = require('path');
 const cors = require('cors');
 
 const articleRoutes = require('./routes/article.routes');
-const mediaRoutes = require('./routes/media.routes'); // ✅ dùng cái này
-const folderRoutes = require('./routes/folder.routes'); // ✅ thêm cái này
+const mediaRoutes = require('./routes/media.routes');  
+const folderRoutes = require('./routes/folder.routes'); 
+const gscRoutes = require('./routes/gsc.routes');
 
 const { errorHandler, multerErrorHandler } = require('./middleware/errors');
 
@@ -31,9 +32,9 @@ app.use(express.static(path.join(process.cwd(), 'public'), { maxAge: '7d', immut
 
 // routes
 app.use('/article', articleRoutes);
-app.use('/media', mediaRoutes); // <-- tất cả media ở đây
-app.use('/folders', folderRoutes); // <-- tất cả folders ở đây
-// health
+app.use('/media', mediaRoutes); 
+app.use('/folders', folderRoutes);  
+app.use('/gsc', gscRoutes);  
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 // error handlers

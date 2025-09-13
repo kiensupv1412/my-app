@@ -34,8 +34,9 @@ yarn-error.log*
 
 # vercel
 .vercel
-
-.zip
+**service_account.json
+**.zip
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+server/modules/gsc/service_account.json

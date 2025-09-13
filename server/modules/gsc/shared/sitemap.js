@@ -1,6 +1,6 @@
-import Sitemapper from "sitemapper";
-import { fetchRetry } from "./utils";
-import { webmasters_v3 } from "googleapis";
+const Sitemapper = require("sitemapper");
+const { fetchRetry } = require("./utils.js");
+const { webmasters_v3 } = require("googleapis");
 
 /**
  * Retrieves a list of sitemaps associated with the specified site URL from the Google Webmasters API.
@@ -46,7 +46,7 @@ async function getSitemapsList(accessToken, siteUrl) {
  * @param siteUrl The URL of the site for which to retrieve the sitemap pages.
  * @returns An array containing the list of sitemaps and an array of unique page URLs extracted from those sitemaps.
  */
-export async function getSitemapPages(accessToken, siteUrl) {
+async function getSitemapPages(accessToken, siteUrl) {
   const sitemaps = await getSitemapsList(accessToken, siteUrl);
 
   let pages = [];
@@ -61,3 +61,5 @@ export async function getSitemapPages(accessToken, siteUrl) {
 
   return [sitemaps, [...new Set(pages)]];
 }
+
+module.exports = { getSitemapsList, getSitemapPages };

@@ -1,7 +1,7 @@
-import { Command } from "commander";
-import { green } from "picocolors";
-import { index } from ".";
-import packageJson from "../../package.json";
+const { index } = require(".");
+const { Command } = require("commander");
+const packageJson = require("./package.json");
+const { green } = require("picocolors");
 
 const program = new Command(packageJson.name);
 

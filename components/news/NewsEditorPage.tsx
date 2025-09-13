@@ -4,8 +4,7 @@
 'use client';
 
 import { PlateEditor } from '@/components/editor/plate-editor';
-import { SettingsProvider } from '@/components/editor/settings';
-import InlineEditor from '@/components/ui/description-edit';
+ import InlineEditor from '@/components/ui/description-edit';
 import { useMemo } from 'react';
 import { useRootData } from '../providers/root-data';
 import SidebarRight from './SidebarRight';
@@ -79,11 +78,8 @@ export default function NewsEditorScreen({ mode, articleId }: Props) {
         <div className="flex h-full">
             <main className="flex-1 min-w-0">
                 <div className="@container/main flex flex-col gap-4">
-                    <InlineEditor description={article?.description ?? ''} />
-                    <SettingsProvider>
-                        {/* truyền Slate Value đã chuẩn hoá */}
-                        <PlateEditor content={slateValue} />
-                    </SettingsProvider>
+                    {/* <InlineEditor description={article?.description ?? ''} /> */}
+                         <PlateEditor content={slateValue} />
                 </div>
             </main>
 

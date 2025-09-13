@@ -1,6 +1,7 @@
-/**
- * Enum representing indexing status of a URL
+/*
+ * path: server/modules/gsc/shared/types.js
  */
+
 const Status = {
   SubmittedAndIndexed: "Submitted and indexed",
   DuplicateWithoutUserSelectedCanonical: "Duplicate without user-selected canonical",
@@ -12,3 +13,5 @@ const Status = {
   Forbidden: "Forbidden",
   Error: "Error",
 };
+
+module.exports = { Status };

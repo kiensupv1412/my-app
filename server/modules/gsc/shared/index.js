@@ -1,5 +1,12 @@
-export * from "./auth";
-export * from "./gsc";
-export * from "./sitemap";
-export * from "./types";
-export * from "./utils";
+/*
+ * path: server/modules/gsc/shared/index.js
+ */
+
+module.exports = {
+  ...require("./auth"),
+  ...require("./gsc"),
+  ...require("./sitemap"),
+  ...require("./types"),
+  ...require("./utils"),
+  ...require("./constants"),
+};

@@ -14,7 +14,7 @@ const createChunks = (arr, size) =>
  * @param batchSize The size of each batch.
  * @param onBatchComplete The callback function invoked upon completion of each batch.
  */
-export async function batch(task, items, batchSize, onBatchComplete) {
+async function batch(task, items, batchSize, onBatchComplete) {
   const chunks = createChunks(items, batchSize);
   for (let i = 0; i < chunks.length; i++) {
     await Promise.all(chunks[i].map(task));
@@ -30,7 +30,7 @@ export async function batch(task, items, batchSize, onBatchComplete) {
  * @returns A Promise resolving to the fetched response.
  * @throws Error when retries are exhausted or server error occurs.
  */
-export async function fetchRetry(url, options, retries = 5) {
+async function fetchRetry(url, options, retries = 5) {
   try {
     const response = await fetch(url, options);
     if (response.status >= 500) {
@@ -45,3 +45,5 @@ export async function fetchRetry(url, options, retries = 5) {
     return fetchRetry(url, options, retries - 1);
   }
 }
+
+module.exports = { batch, fetchRetry };

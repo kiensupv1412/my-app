@@ -35,6 +35,6 @@
     "server/modules/gsc/index.js",
     "server/modules/gsc/shared/utils.js",
     "server/modules/gsc/shared/types.js"
-  ],
+, "components/editor/editor-kit.tsx", "components/editor/plate-editor.tsx"  ],
   "exclude": ["node_modules"]
 }

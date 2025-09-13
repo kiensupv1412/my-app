@@ -1,13 +1,13 @@
-import { QUOTA } from "../src";
-import { Status } from "./types";
-import { fetchRetry } from "./utils";
+const { QUOTA } = require("../index.js");
+const { Status } = require("./types.js");
+const { fetchRetry } = require("./utils.js");
 
 /**
  * Converts a given input string to a valid Google Search Console site URL format.
  * @param input - The input string to be converted.
  * @returns The converted site URL (domain.com or https://domain.com/)
  */
-export function convertToSiteUrl(input) {
+function convertToSiteUrl(input) {
   if (input.startsWith("http://") || input.startsWith("https://")) {
     return input.endsWith("/") ? input : `${input}/`;
   }
@@ -19,7 +19,7 @@ export function convertToSiteUrl(input) {
  * @param path - The url to be converted as a file name
  * @returns The converted file path
  */
-export function convertToFilePath(path) {
+function convertToFilePath(path) {
   return path.replace("http://", "http_").replace("https://", "https_").replaceAll("/", "_");
 }
 
@@ -28,7 +28,7 @@ export function convertToFilePath(path) {
  * @param httpUrl The HTTP URL to be converted.
  * @returns The sc-domain formatted URL.
  */
-export function convertToSCDomain(httpUrl) {
+function convertToSCDomain(httpUrl) {
   return `sc-domain:${httpUrl.replace("http://", "").replace("https://", "").replace("/", "")}`;
 }
 
@@ -37,7 +37,7 @@ export function convertToSCDomain(httpUrl) {
  * @param domain The domain to be converted.
  * @returns The HTTP URL.
  */
-export function convertToHTTP(domain) {
+function convertToHTTP(domain) {
   return `http://${domain}/`;
 }
 
@@ -46,7 +46,7 @@ export function convertToHTTP(domain) {
  * @param domain The domain to be converted.
  * @returns The HTTPS URL.
  */
-export function convertToHTTPS(domain) {
+function convertToHTTPS(domain) {
   return `https://${domain}/`;
 }
 
@@ -55,7 +55,7 @@ export function convertToHTTPS(domain) {
  * @param accessToken - The access token for authentication.
  * @returns An array containing the site URLs associated with the service account.
  */
-export async function getSites(accessToken) {
+async function getSites(accessToken) {
   const sitesResponse = await fetchRetry("https://www.googleapis.com/webmasters/v3/sites", {
     headers: {
       "Content-Type": "application/json",
@@ -84,7 +84,7 @@ export async function getSites(accessToken) {
  * @param siteUrl - The URL of the site to check.
  * @returns The corrected URL if found, otherwise the original site URL.
  */
-export async function checkSiteUrl(accessToken, siteUrl) {
+async function checkSiteUrl(accessToken, siteUrl) {
   const sites = await getSites(accessToken);
   let formattedUrls = [];
 
@@ -104,7 +104,8 @@ export async function checkSiteUrl(accessToken, siteUrl) {
   } else {
     console.error("❌ Unknown site URL format.");
     console.error("");
-    process.exit(1);
+    const msg = await response.text().catch(() => String(response.status));
+    throw new Error(`GSC error ${response.status}: ${msg}`);
   }
 
   // Check if any of the formatted URLs are accessible
@@ -117,7 +118,8 @@ export async function checkSiteUrl(accessToken, siteUrl) {
   // If none of the formatted URLs are accessible
   console.error("❌ This service account doesn't have access to this site.");
   console.error("");
-  process.exit(1);
+  const msg = await response.text().catch(() => String(response.status));
+  throw new Error(`GSC error ${response.status}: ${msg}`);
 }
 
 /**
@@ -126,7 +128,7 @@ export async function checkSiteUrl(accessToken, siteUrl) {
  * @param urls - The URLs to check.
  * @returns An array containing the corrected URLs if found, otherwise the original URLs
  */
-export function checkCustomUrls(siteUrl, urls) {
+function checkCustomUrls(siteUrl, urls) {
   const protocol = siteUrl.startsWith("http://") ? "http://" : "https://";
   const domain = siteUrl.replace("https://", "").replace("http://", "").replace("sc-domain:", "");
   const formattedUrls = urls.map((url) => {
@@ -156,7 +158,7 @@ export function checkCustomUrls(siteUrl, urls) {
  * @param inspectionUrl - The URL of the page to inspect.
  * @returns A promise resolving to the status of indexing.
  */
-export async function getPageIndexingStatus(accessToken, siteUrl, inspectionUrl) {
+async function getPageIndexingStatus(accessToken, siteUrl, inspectionUrl) {
   try {
     const response = await fetchRetry(`https://searchconsole.googleapis.com/v1/urlInspection/index:inspect`, {
       method: "POST",
@@ -203,7 +205,7 @@ export async function getPageIndexingStatus(accessToken, siteUrl, inspectionUrl)
  * @param status - The status for which to retrieve the emoji.
  * @returns The emoji representing the status.
  */
-export function getEmojiForStatus(status) {
+function getEmojiForStatus(status) {
   switch (status) {
     case Status.SubmittedAndIndexed:
       return "✅";
@@ -230,7 +232,7 @@ export function getEmojiForStatus(status) {
  * @param options - The options for the request.
  * @returns The status of the request.
  */
-export async function getPublishMetadata(accessToken, url, options) {
+async function getPublishMetadata(accessToken, url, options) {
   const response = await fetchRetry(
     `https://indexing.googleapis.com/v3/urlNotifications/metadata?url=${encodeURIComponent(url)}`,
     {
@@ -264,7 +266,8 @@ export async function getPublishMetadata(accessToken, url, options) {
       console.error("   Quota: https://developers.google.com/search/apis/indexing-api/v3/quota-pricing#quota");
       console.error("   Usage: https://console.cloud.google.com/apis/enabled");
       console.error("");
-      process.exit(1);
+      const msg = await response.text().catch(() => String(response.status));
+      throw new Error(`GSC error ${response.status}: ${msg}`);
     }
   }
 
@@ -282,7 +285,7 @@ export async function getPublishMetadata(accessToken, url, options) {
  * @param accessToken - The access token for authentication.
  * @param url - The URL to be indexed.
  */
-export async function requestIndexing(accessToken, url) {
+async function requestIndexing(accessToken, url) {
   const response = await fetchRetry("https://indexing.googleapis.com/v3/urlNotifications:publish", {
     method: "POST",
     headers: {
@@ -307,7 +310,8 @@ export async function requestIndexing(accessToken, url) {
       console.error("   Quota: https://developers.google.com/search/apis/indexing-api/v3/quota-pricing#quota");
       console.error("   Usage: https://console.cloud.google.com/apis/enabled");
       console.error("");
-      process.exit(1);
+      const msg = await response.text().catch(() => String(response.status));
+      throw new Error(`GSC error ${response.status}: ${msg}`);
     } else {
       console.error(`❌ Failed to request indexing.`);
       console.error(`Response was: ${response.status}`);
@@ -315,3 +319,17 @@ export async function requestIndexing(accessToken, url) {
     }
   }
 }
+
+module.exports = {
+  convertToFilePath,
+  convertToHTTP,
+  convertToSiteUrl,
+  convertToSCDomain,
+  getSites,
+  checkSiteUrl,
+  checkCustomUrls,
+  getPageIndexingStatus,
+  getEmojiForStatus,
+  requestIndexing,
+  getPublishMetadata,
+};

@@ -6,7 +6,7 @@ import type { DropdownMenuProps } from '@radix-ui/react-dropdown-menu';
 
 import { MarkdownPlugin } from '@platejs/markdown';
 import { ArrowUpToLineIcon } from 'lucide-react';
-import { getEditorDOMFromHtmlString } from 'platejs';
+import { getEditorDOMFromHtmlString, htmlStringToDOMNode, parseHtmlElement } from 'platejs';
 import { useEditorRef } from 'platejs/react';
 import { useFilePicker } from 'use-file-picker';
 
@@ -27,9 +27,11 @@ export function ImportToolbarButton(props: DropdownMenuProps) {
   const [open, setOpen] = React.useState(false);
 
   const getFileNodes = (text: string, type: ImportType) => {
-    if (type === 'html') {
-      const editorNode = getEditorDOMFromHtmlString(text);
-      const nodes = editor.api.html.deserialize({
+     if (type === 'html') {
+      // const editorNode = getEditorDOMFromHtmlString(text);
+      const editorNode = parseHtmlElement(text);         
+    //  const editorNode = htmlStringToDOMNode(text);
+          const nodes = editor.api.html.deserialize({
         element: editorNode,
       });
 

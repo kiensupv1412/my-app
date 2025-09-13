@@ -11,26 +11,26 @@ import { BaseEditorKit } from './editor-base-kit';
 import { serializeCleanHtml } from '@/lib/serializeCleanHtml';
 import { serializeHtml } from 'platejs';
 
-// function Logger() {
-//   const value = useEditorValue()
-//   React.useEffect(() => {
-//     ;(async () => {
-//       try {
-//         const serializeEditor = createPlateEditor({
-//           plugins: BaseEditorKit,
-//           value, 
-//         })
-//         const html = await serializeHtml(serializeEditor)
-//         // console.log("🚀 ~ Logger ~ html:", html)
-//         // console.log('[Plate HTML]', serializeCleanHtml(html))
-//       } catch (e) {
-//         console.error('serializeHtml(BaseEditorKit) error:', e)
-//       }
-//     })()
-//   }, [value])
+function Logger() {
+  const value = useEditorValue()
+  React.useEffect(() => {
+    ;(async () => {
+      try {
+        const serializeEditor = createPlateEditor({
+          plugins: BaseEditorKit,
+          value, 
+        })
+        const html = await serializeHtml(serializeEditor)
+        // console.log("🚀 ~ Logger ~ html:", html)
+        // console.log('[Plate HTML]', serializeCleanHtml(html))
+      } catch (e) {
+        console.error('serializeHtml(BaseEditorKit) error:', e)
+      }
+    })()
+  }, [value])
 
-//   return null
-// }
+  return null
+}
 
 export function PlateEditor() {
   const editor = usePlateEditor({

@@ -246,8 +246,6 @@ function getColumns(categories: z.infer<typeof schemaCategory>[]): ColumnDef<z.i
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {/* Modal xác nhận xoá */}
             <ConfirmDeleteModal
               open={open}
               onOpenChange={setOpen}

@@ -1,3 +1,7 @@
+/*
+ * path: components/editor/ui/import-toolbar-button.tsx
+ */
+
 'use client';
 
 import * as React from 'react';
@@ -28,9 +32,10 @@ export function ImportToolbarButton(props: DropdownMenuProps) {
 
   const getFileNodes = (text: string, type: ImportType) => {
      if (type === 'html') {
-      // const editorNode = getEditorDOMFromHtmlString(text);
+    // const editorNode = getEditorDOMFromHtmlString(text);
       const editorNode = parseHtmlElement(text);         
     //  const editorNode = htmlStringToDOMNode(text);
+    // console.log("🚀 ~ getFileNodes ~ editorNode:", editorNode)
           const nodes = editor.api.html.deserialize({
         element: editorNode,
       });

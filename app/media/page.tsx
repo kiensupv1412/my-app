@@ -264,14 +264,7 @@ export default function MediaPage() {
                 )}
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-                {items.length === 0 ? (
-                    <div className="col-span-full flex flex-col items-center justify-center gap-2 rounded-lg border py-16 text-sm text-muted-foreground">
-                        <div className="rounded-full border px-3 py-1">Chưa có media nào</div>
-                        <div>
-                            Tải lên bằng nút <span className="font-medium">Upload Media</span>.
-                        </div>
-                    </div>
-                ) : (
+                {
                     items.map((m) => (
                         <MediaDetail
                             key={m.id}
@@ -293,7 +286,7 @@ export default function MediaPage() {
                             onDelete={handleDelete}
                         />
                     ))
-                )}
+                }
             </div>
             <div className="px-1 text-xs text-muted-foreground">Tổng: {items.length} mục</div>
         </div>

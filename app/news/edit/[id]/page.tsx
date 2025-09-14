@@ -1,8 +1,8 @@
 import NewsEditorPage from '@/components/news/NewsEditorPage';
 
-type Props = { params: { id: string } };
+type Props = { params: Promise<{ id: string }> };
 
-export default function Page({ params }: Props) {
-    const { id } = params;
+export default async function Page({ params }: Props) {
+    const { id } = await params;
     return <NewsEditorPage mode="edit" articleId={id} />;
 }

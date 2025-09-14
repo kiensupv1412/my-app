@@ -28,6 +28,7 @@ import { FontKit } from '@/components/editor/plugins/font-kit';
 import { LineHeightKit } from '@/components/editor/plugins/line-height-kit';
 import { LinkKit } from '@/components/editor/plugins/link-kit';
 import { ListKit } from '@/components/editor/plugins/list-kit';
+import { ListClassicKit } from '@/components/editor/plugins/list-classic-kit';
 import { MarkdownKit } from '@/components/editor/plugins/markdown-kit';
 import { MathKit } from '@/components/editor/plugins/math-kit';
 import { MediaKit } from '@/components/editor/plugins/media-kit';
@@ -61,6 +62,7 @@ export const EditorKit = [
   ...FontKit,
 
   // Block Style
+  // ...ListClassicKit,
   ...ListKit,
   ...AlignKit,
   ...LineHeightKit,

@@ -80,6 +80,8 @@
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
   --highlight: oklch(0.852 0.199 91.936);
   --brand: oklch(0.623 0.214 259.815);
+  --sidebar-width: calc(var(--spacing) * 48);
+  --header-height: calc(var(--spacing) * 12);
 }
 
 .dark {

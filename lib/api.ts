@@ -36,6 +36,13 @@ export async function getData<T = any>(url: string): Promise<T | null> {
       return null;
     }
   }
-  
+
+
+// ➕ Thêm PUT (update)
+export async function putData<T = any>(url: string, data: any): Promise<T | null> {
+  const res = await api.put<T>(url, data);
+  return res.data;
+}
+
   // Export luôn instance nếu cần dùng linh hoạt
   export default api;

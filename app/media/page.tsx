@@ -6,6 +6,8 @@
 
 import { MediaDetail } from '@/components/media/media-detail';
 import { UploadMediaDialog } from '@/components/media/upload-media-dialog';
+import { confirmDelete } from '@/components/modals/confirm-delete-service';
+import { useAppToast } from '@/components/providers/app-toast';
 import { useRootData } from '@/components/providers/root-data';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,19 +16,10 @@ import {
     apiCreateFolder,
     apiDeleteMedia,
     apiListFolders,
-    apiListMedia, // ⬅️ dùng API có phân trang + hỗ trợ folder_id
+    apiListMedia,
 } from '@/lib/media.api';
 import { IconChevronLeft, IconPlus } from '@tabler/icons-react';
 import * as React from 'react';
-
-/* ------- utils ------- */
-function toSize(n?: number | null) {
-    const v = typeof n === 'number' ? n : 0;
-    if (v < 1024) return v + ' B';
-    if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' KB';
-    if (v < 1024 * 1024 * 1024) return (v / 1024 / 1024).toFixed(1) + ' MB';
-    return (v / 1024 / 1024 / 1024).toFixed(1) + ' GB';
-}
 
 export default function MediaPage() {
     const rd = useRootData();
@@ -54,6 +47,7 @@ export default function MediaPage() {
     const [pageSize, setPageSize] = React.useState<number>(48);
     const [total, setTotal] = React.useState<number>(normalized.length || 0);
     const [loading, setLoading] = React.useState<boolean>(false);
+    const { success, error } = useAppToast();
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -130,16 +124,22 @@ export default function MediaPage() {
 
     async function handleDelete(id: number) {
         try {
+            const ok = await confirmDelete({
+                title: `Xoá ảnh`,
+                description: 'Ảnh sẽ bị xoá vĩnh viễn. Bạn chắc chứ?',
+                confirmText: 'Xoá',
+                cancelText: 'Huỷ',
+            });
+            if (!ok) return;
             await apiDeleteMedia(id);
-            // refetch để cập nhật tổng & trang
             const nextCount = items.length - 1;
             if (nextCount <= 0 && page > 1) {
                 setPage((p) => Math.max(1, p - 1));
             } else {
-                // trigger effect fetchMedia
                 setItems((prev) => prev.filter((x) => x.id !== id));
                 setTotal((t) => Math.max(0, t - 1));
             }
+            success();
         } catch (e) {
             console.error('Delete error:', e);
         }

@@ -30,7 +30,6 @@ import {
   useReactTable
 } from "@tanstack/react-table"
 import * as React from "react"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { z } from "zod"
 
 import { Badge } from "@/components/ui/badge"
@@ -86,7 +85,11 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ConfirmDeleteModal } from "../modals/confirm-delete"
+import { confirmDelete } from '@/components/modals/confirm-delete-service';
+import { TableCellViewer } from './TableCellViewer'
+import { MediaThumb } from '../media/media-thumb'
+import { AspectRatio } from '../ui/aspect-ratio'
+
 
 function formatDate(value: string | Date, opts: Intl.DateTimeFormatOptions = {}) {
   const date = value instanceof Date ? value : new Date(value)
@@ -108,6 +111,14 @@ export const schema = z.object({
   reviewer: z.string(),
 })
 
+export const schemaCategory = z.array(
+  z.object({
+    id: z.number(),
+    name: z.string(),
+    slug: z.string(),
+  })
+);
+
 function getColumns(categories: z.infer<typeof schemaCategory>[]): ColumnDef<z.infer<typeof schema>>[] {
   return [
     {
@@ -119,20 +130,24 @@ function getColumns(categories: z.infer<typeof schemaCategory>[]): ColumnDef<z.i
     {
       header: "Thumbnail",
       cell: ({ row }) =>
-        <img src={row.original.thumb}
-          alt={row.original.title ?? "thumbnail"}
-          className="h-auto max-h-16 w-24 object-cover rounded-md border"
-        />,
-      // <IconLoader/>
-      meta: { className: "align-middle" }
+        <div className="relative h-14 w-[100px]">
+          <MediaThumb
+            src={row.original.thumb}
+            alt={row.original.title ?? "thumbnail"}
+            className="h-full w-full rounded-lg object-cover dark:brightness-[0.2] dark:grayscale"
+          />
+        </div>,
+      meta: { className: "" }
     },
     {
       accessorKey: "title",
       header: "Title",
       cell: ({ row }) => {
-        return <TableCellViewer item={row.original} categories={categories} />
+        return <TableCellViewer mode={"dashboard"} item={row.original} categories={categories} />
       },
       enableHiding: false,
+      meta: { className: "whitespace-normal" }
+
     },
     {
       accessorKey: "category_name",
@@ -164,59 +179,22 @@ function getColumns(categories: z.infer<typeof schemaCategory>[]): ColumnDef<z.i
         <span className="text-sm text-primary">{formatDate(row.original.updated_at)}</span>,
       meta: { className: "" }
     },
-
-
-    // {
-    //   header: "Reviewer",
-    //   cell: ({ row }) => {
-    //     const isAssigned = row.original.reviewer !== "Assign reviewer"
-
-    //     // if (isAssigned) {
-    //     //   return row.original.reviewer
-    //     // }
-
-    //     return (
-    //       <>
-    //         <Label htmlFor={`${row.original.id}-reviewer`} className="sr-only">
-    //           Reviewer
-    //         </Label>
-    //         <Select>
-    //           <SelectTrigger
-    //             className="w-38 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate"
-    //             size="sm"
-    //             id={`${row.original.id}-reviewer`}
-    //           >
-    //             <SelectValue placeholder="Assign reviewer" />
-    //           </SelectTrigger>
-    //           <SelectContent align="end">
-    //             <SelectItem value="Eddie Lake">Eddie Lake</SelectItem>
-    //             <SelectItem value="Jamik Tashpulatov">
-    //               Jamik Tashpulatov
-    //             </SelectItem>
-    //           </SelectContent>
-    //         </Select>
-    //       </>
-    //     )
-    //   },
-    // },
     {
       id: 'actions',
       cell: ({ row, table }) => {
         const router = useRouter();
         const articleId = row.original.id;
-
-        const [open, setOpen] = React.useState(false);
-        const [loading, setLoading] = React.useState(false);
-
-        async function handleConfirm() {
-          try {
-            setLoading(true);
-            await table.options.meta?.onDelete?.(articleId);
-            setOpen(false);
-          } finally {
-            setLoading(false);
+        async function handleDelete() {
+          const ok = await confirmDelete();
+          if (ok) {
+            try {
+              await table.options.meta?.onDelete?.(articleId);
+            } catch (e) {
+              error('Delete failed:');
+            }
           }
         }
+
 
         return (
           <>
@@ -235,33 +213,24 @@ function getColumns(categories: z.infer<typeof schemaCategory>[]): ColumnDef<z.i
                 <DropdownMenuItem onClick={() => router.push(`/news/edit/${articleId}`)}>
                   Edit
                 </DropdownMenuItem>
-                <DropdownMenuItem>Make a copy</DropdownMenuItem>
                 <DropdownMenuItem>Favorite</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
-                  onClick={() => setOpen(true)}
+                  onClick={handleDelete}
                 >
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <ConfirmDeleteModal
-              open={open}
-              onOpenChange={setOpen}
-              onConfirm={handleConfirm}
-              loading={loading}
-              title="Xoá bài viết?"
-              description={`Bạn chắc chắn muốn xoá bài #${articleId}? Hành động này không thể hoàn tác.`}
-              confirmText="Xoá"
-              cancelText="Huỷ"
-            />
+
           </>
         );
       },
     }
   ]
 }
+
 
 export function DataArticles({
   data: initialData,
@@ -270,6 +239,7 @@ export function DataArticles({
   data: z.infer<typeof schema>[]
   categories: z.infer<typeof schemaCategory>[]
 }) {
+  const { success, error } = useAppToast();
   const [data, setData] = React.useState(() => initialData)
   const [categories, setCategories] = React.useState(() => initialCategories)
   const [rowSelection, setRowSelection] = React.useState({})
@@ -281,9 +251,8 @@ export function DataArticles({
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
-    pageSize: 14,
+    pageSize: 10,
   })
-  const { success, error } = useAppToast();
 
   const onDelete = React.useCallback((id: number) => {
     setData(prev => {
@@ -335,7 +304,7 @@ export function DataArticles({
   return (
     <Tabs
       defaultValue="all"
-      className="w-full flex-col justify-start gap-4"
+      className="flex w-full flex-1 min-h-0 flex-col gap-4"
     >
       <div className="flex items-center justify-between px-4 lg:px-6">
         <TabsList className="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex">
@@ -349,7 +318,6 @@ export function DataArticles({
             Top Views <Badge variant="secondary">2</Badge>
           </TabsTrigger>
         </TabsList>
-
         <div className="flex items-center gap-2">
           <Input
             placeholder="Search title..."
@@ -406,53 +374,54 @@ export function DataArticles({
           </Button>
         </div>
       </div>
-      <TabsContent
-        value="all"
-        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+      <TabsContent value="all"
+        className="flex flex-1 min-h-0 flex-col gap-4 px-4 lg:px-6"
       >
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader className="bg-muted sticky top-0 z-10">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead key={header.id} colSpan={header.colSpan}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                      </TableHead>
-                    )
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody className="**:data-[slot=table-cell]:first:w-8">
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}
-                        className={cell.column.columnDef.meta?.className}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
+        <div className="flex-1 min-h-0 overflow-auto">
+          <div className="overflow-hidden rounded-sm border">
+            <Table>
+              <TableHeader className="bg-muted sticky top-0 z-10">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow className='h-12' key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id} colSpan={header.colSpan}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                        </TableHead>
+                      )
+                    })}
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={table.getAllColumns().length} className="h-24 text-center">
-                    No results.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                ))}
+              </TableHeader>
+              <TableBody className="**:data-[slot=table-cell]:first:w-8">
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}
+                          className={cell.column.columnDef.meta?.className}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={table.getAllColumns().length} className="h-24 text-center">
+                      No results.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
-        <div className="flex items-center justify-between px-4">
+        <div className="mt-auto flex items-center justify-between border-t bg-background px-4 py-2">
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
             {table.getFilteredSelectedRowModel().rows.length} of{" "}
             {table.getFilteredRowModel().rows.length} row(s) selected.
@@ -530,193 +499,19 @@ export function DataArticles({
           </div>
         </div>
       </TabsContent>
-      <TabsContent
-        value="past-performance"
+      <TabsContent value="favorite"
         className="flex flex-col px-4 lg:px-6"
       >
         <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
       </TabsContent>
-      <TabsContent value="key-personnel" className="flex flex-col px-4 lg:px-6">
-        <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
-      </TabsContent>
-      <TabsContent
-        value="focus-documents"
-        className="flex flex-col px-4 lg:px-6"
-      >
+      <TabsContent value="top-view"
+        className="flex flex-col px-4 lg:px-6">
         <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
       </TabsContent>
     </Tabs>
   )
 }
 
-const chartData = [
-  { month: "January", desktop: 186, mobile: 80 },
-  { month: "February", desktop: 305, mobile: 200 },
-  { month: "March", desktop: 237, mobile: 120 },
-  { month: "April", desktop: 73, mobile: 190 },
-  { month: "May", desktop: 209, mobile: 130 },
-  { month: "June", desktop: 214, mobile: 140 },
-]
 
 
-const chartConfig = {
-  desktop: {
-    label: "Desktop",
-    color: "var(--primary)",
-  },
-  mobile: {
-    label: "Mobile",
-    color: "var(--primary)",
-  },
-} satisfies ChartConfig
 
-export const schemaCategory = z.array(
-  z.object({
-    id: z.number(),
-    name: z.string(),
-    slug: z.string(),
-  })
-);
-type Props = {
-  item: z.infer<typeof schema>;
-  categories: z.infer<typeof schemaCategory>;
-};
-const TableCellViewer = ({ item, categories }: Props) => {
-  const isMobile = useIsMobile()
-
-  return (
-    <Drawer direction={isMobile ? "bottom" : "right"}>
-      <DrawerTrigger asChild>
-        <Button variant="link" className="text-foreground w-fit px-0 text-left">
-          {item.title}
-        </Button>
-      </DrawerTrigger>
-      <DrawerContent>
-        <DrawerHeader className="gap-1">
-          <DrawerTitle>{item.title}</DrawerTitle>
-          <DrawerDescription>
-            Showing total visitors for the last 6 months
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
-          {!isMobile && (
-            <>
-              <ChartContainer config={chartConfig}>
-                <AreaChart
-                  accessibilityLayer
-                  data={chartData}
-                  margin={{
-                    left: 0,
-                    right: 10,
-                  }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(value) => value.slice(0, 3)}
-                    hide
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                  />
-                  <Area
-                    dataKey="mobile"
-                    type="natural"
-                    fill="var(--color-mobile)"
-                    fillOpacity={0.6}
-                    stroke="var(--color-mobile)"
-                    stackId="a"
-                  />
-                  <Area
-                    dataKey="desktop"
-                    type="natural"
-                    fill="var(--color-desktop)"
-                    fillOpacity={0.4}
-                    stroke="var(--color-desktop)"
-                    stackId="a"
-                  />
-                </AreaChart>
-              </ChartContainer>
-              <Separator />
-              <div className="grid gap-2">
-                <div className="flex gap-2 leading-none font-medium">
-                  Trending up by 5.2% this month{" "}
-                  <IconTrendingUp className="size-4" />
-                </div>
-                <div className="text-muted-foreground">
-                  Showing total visitors for the last 6 months. This is just
-                  some random text to test the layout. It spans multiple lines
-                  and should wrap around.
-                </div>
-              </div>
-              <Separator />
-            </>
-          )}
-          <form className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3">
-              <Label htmlFor="header">Header</Label>
-              <Input id="header" defaultValue={item.title} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="type">Category</Label>
-                <Select defaultValue={item.category_name}>
-                  <SelectTrigger id="type" className="w-full">
-                    <SelectValue placeholder="Select a type" />
-                  </SelectTrigger>
-
-                  <SelectContent >
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.name}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-
-                </Select>
-              </div>
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="status">Status</Label>
-                <Select defaultValue={item.status}>
-                  <SelectTrigger id="status" className="w-full">
-                    <SelectValue placeholder="Select a status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="yes">yes</SelectItem>
-                    <SelectItem value="draft">draft</SelectItem>
-                    <SelectItem value="del">del</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <Label htmlFor="reviewer">Reviewer</Label>
-              <Select defaultValue={item.reviewer}>
-                <SelectTrigger id="reviewer" className="w-full">
-                  <SelectValue placeholder="Select a reviewer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Eddie Lake">Eddie Lake</SelectItem>
-                  <SelectItem value="Jamik Tashpulatov">
-                    Jamik Tashpulatov
-                  </SelectItem>
-                  <SelectItem value="Emily Whalen">Emily Whalen</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </form>
-        </div>
-        <DrawerFooter>
-          <Button>Submit</Button>
-          <DrawerClose asChild>
-            <Button variant="outline">Done</Button>
-          </DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
-  )
-}

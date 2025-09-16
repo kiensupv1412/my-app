@@ -1,3 +1,7 @@
+/*
+ * path: components/editor/ui/toolbar.tsx
+ */
+
 'use client';
 
 import * as React from 'react';

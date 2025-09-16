@@ -8,25 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { useIsMobile } from '@/hooks/use-mobile'; // hook của bạn
 import { IconCopy, IconDownload, IconTrash } from '@tabler/icons-react';
 import { z } from 'zod';
-import { ConfirmDeleteModal } from '@/components/modals/confirm-delete'
 import React from 'react';
-import { confirmDelete } from '@/components/modals/confirm-delete-service';
 
-async function handleDelete(id: number, name: string) {
-    const ok = await confirmDelete({
-        title: `Xoá ảnh "${name}"`,
-        description: 'Ảnh sẽ bị xoá vĩnh viễn. Bạn có chắc chắn?',
-        confirmText: 'Xoá',
-        cancelText: 'Huỷ',
-    });
-
-    if (ok) {
-        console.log('Đã xác nhận xoá', id);
-        // gọi API xoá
-    } else {
-        console.log('Huỷ xoá');
-    }
-}
 // schema giống bạn đã định nghĩa
 export const schemaMedia = z.object({
     id: z.number(),
@@ -47,7 +30,7 @@ type MediaItem = z.infer<typeof schemaMedia>;
 
 type Props = {
     item: MediaItem;
-    onDelete?: (id: number) => void;
+    onDelete: (id: number) => void;
 };
 
 function toSize(n?: number | null) {
@@ -59,7 +42,6 @@ function toSize(n?: number | null) {
 }
 
 export function MediaDetail({ item, onDelete }: Props) {
-    const [deleteTarget, setDeleteTarget] = React.useState<MediaItem | null>(null);
     const isMobile = useIsMobile();
     const src = item.thumbnail ? item.thumbnail : item.file_url;
 
@@ -181,7 +163,7 @@ export function MediaDetail({ item, onDelete }: Props) {
                         <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => handleDelete(item.id, item.mime)}
+                            onClick={() => onDelete(item.id)}
                         >
                             <IconTrash className="mr-2 h-4 w-4" />
                             Xoá

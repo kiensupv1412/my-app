@@ -26,51 +26,63 @@ export function serializeCleanHtml(html: string) {
     });
   });
 
+  // Xử lý <ins> và <del>
+  // - ins: remove toàn bộ thẻ và nội dung
+  doc.querySelectorAll('ins').forEach((el) => {
+    el.remove(); // xoá cả nội dung của <ins>
+  });
+
+  // - del: bỏ thẻ, chỉ giữ plain text (không giữ thẻ con)
+  doc.querySelectorAll('del').forEach((el) => {
+    const text = doc.createTextNode(el.textContent || '');
+    el.replaceWith(text);
+  });
+
 
   // A) Unwrap các wrapper div thuần quanh block khác (ul/ol/table/pre/figure)
-doc.querySelectorAll('div').forEach((el) => {
-  const onlyChild = el.childElementCount === 1 ? el.firstElementChild as HTMLElement : null;
-  if (!onlyChild) return;
-  if (/^(UL|OL|TABLE|PRE|FIGURE)$/.test(onlyChild.tagName)) {
-    // bỏ lớp vỏ: <div><ul>…</ul></div> -> <ul>…</ul>
-    const parent = el.parentNode;
-    parent?.insertBefore(onlyChild, el);
-    parent?.removeChild(el);
-  }
-});
+  doc.querySelectorAll('div').forEach((el) => {
+    const onlyChild = el.childElementCount === 1 ? el.firstElementChild as HTMLElement : null;
+    if (!onlyChild) return;
+    if (/^(UL|OL|TABLE|PRE|FIGURE)$/.test(onlyChild.tagName)) {
+      // bỏ lớp vỏ: <div><ul>…</ul></div> -> <ul>…</ul>
+      const parent = el.parentNode;
+      parent?.insertBefore(onlyChild, el);
+      parent?.removeChild(el);
+    }
+  });
 
-// B) Trong blockquote, <div>… -> <p>…
-doc.querySelectorAll('blockquote > div').forEach((el) => {
-  const p = doc.createElement('p');
-  while (el.firstChild) p.appendChild(el.firstChild);
-  el.replaceWith(p);
-});
+  // B) Trong blockquote, <div>… -> <p>…
+  doc.querySelectorAll('blockquote > div').forEach((el) => {
+    const p = doc.createElement('p');
+    while (el.firstChild) p.appendChild(el.firstChild);
+    el.replaceWith(p);
+  });
 
-// C) Đổi div “đoạn văn” sang <p>
-// - chỉ đổi nếu KHÔNG có block-level con
-// - block-level phổ biến:
-const BLOCK_TAGS = new Set([
-  'ADDRESS','ARTICLE','ASIDE','BLOCKQUOTE','DETAILS','DIALOG','DIV','DL','DT','DD',
-  'FIELDSET','FIGCAPTION','FIGURE','FOOTER','FORM','H1','H2','H3','H4','H5','H6',
-  'HEADER','HR','LI','MAIN','NAV','OL','P','PRE','SECTION','TABLE','UL'
-]);
+  // C) Đổi div “đoạn văn” sang <p>
+  // - chỉ đổi nếu KHÔNG có block-level con
+  // - block-level phổ biến:
+  const BLOCK_TAGS = new Set([
+    'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DETAILS', 'DIALOG', 'DIV', 'DL', 'DT', 'DD',
+    'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+    'HEADER', 'HR', 'LI', 'MAIN', 'NAV', 'OL', 'P', 'PRE', 'SECTION', 'TABLE', 'UL'
+  ]);
 
-doc.querySelectorAll('div').forEach((el) => {
-  // bỏ qua container “đậm đặc UI” (có nhiều class util) nếu bạn muốn:
-  // if ((el.className || '').match(/\b(group|relative|overflow|rounded|px-|py-)\b/)) return;
+  doc.querySelectorAll('div').forEach((el) => {
+    // bỏ qua container “đậm đặc UI” (có nhiều class util) nếu bạn muốn:
+    // if ((el.className || '').match(/\b(group|relative|overflow|rounded|px-|py-)\b/)) return;
 
-  // có bất kỳ block con nào? => không đổi
-  const hasBlockChild = Array.from(el.children).some((c) => BLOCK_TAGS.has(c.tagName));
-  if (hasBlockChild) return;
+    // có bất kỳ block con nào? => không đổi
+    const hasBlockChild = Array.from(el.children).some((c) => BLOCK_TAGS.has(c.tagName));
+    if (hasBlockChild) return;
 
-  // nếu chủ yếu là text/inline => đổi sang <p>
-  const p = doc.createElement('p');
-  // giữ lại inline class "an toàn" nếu bạn cần (hoặc bỏ hết class):
-  if (el.getAttribute('class')) el.removeAttribute('class');
+    // nếu chủ yếu là text/inline => đổi sang <p>
+    const p = doc.createElement('p');
+    // giữ lại inline class "an toàn" nếu bạn cần (hoặc bỏ hết class):
+    if (el.getAttribute('class')) el.removeAttribute('class');
 
-  while (el.firstChild) p.appendChild(el.firstChild);
-  el.replaceWith(p);
-});
+    while (el.firstChild) p.appendChild(el.firstChild);
+    el.replaceWith(p);
+  });
 
   // 3) Bỏ class bắt đầu bằng slate-
   doc.querySelectorAll<HTMLElement>('[class]').forEach((el) => {
@@ -106,7 +118,7 @@ doc.querySelectorAll('div').forEach((el) => {
     if (!rel.includes('noreferrer')) rel.push('noreferrer');
     a.setAttribute('rel', rel.join(' '));
   });
-  
+
 
   doc.querySelectorAll('p').forEach(p => {
     if (p.textContent.trim() === '' || p.textContent === '\uFEFF') {
@@ -124,20 +136,20 @@ doc.querySelectorAll('div').forEach((el) => {
   (() => {
     // duyệt tất cả <ul> (theo thứ tự tài liệu)
     const uls = Array.from(doc.querySelectorAll('ul'));
-  
+
     for (let i = 0; i < uls.length; i++) {
       const base = uls[i];
       // tiếp tục gộp khi thẻ kế tiếp vẫn là <ul>
       let next = base.nextElementSibling;
-  
+
       while (next && next.tagName === 'UL') {
         const nextUl = next as HTMLUListElement;
-  
+
         // Chuyển từng <li> của nextUl sang base (đúng thứ tự)
         Array.from(nextUl.children).forEach((child) => {
           if (child.tagName === 'LI') base.appendChild(child);
         });
-  
+
         // Xóa <ul> thừa
         const toRemove = nextUl;
         next = nextUl.nextElementSibling;
@@ -145,6 +157,6 @@ doc.querySelectorAll('div').forEach((el) => {
       }
     }
   })();
-  
+
   return doc.body.innerHTML;
 }

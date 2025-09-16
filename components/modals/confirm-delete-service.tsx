@@ -7,8 +7,8 @@ import { ConfirmDeleteModal } from '@/components/modals/confirm-delete';
 let container: HTMLDivElement | null = null;
 let root: ReturnType<typeof createRoot> | null = null;
 
-export function confirmDelete(opts: {
-    title: string;
+export function confirmDelete(opts?: {
+    title?: string;
     description?: string;
     confirmText?: string;
     cancelText?: string;
@@ -32,10 +32,10 @@ export function confirmDelete(opts: {
                     if (!open) handleClose(false);
                 }}
                 onConfirm={() => handleClose(true)}
-                title={opts.title}
-                description={opts.description}
-                confirmText={opts.confirmText ?? 'Delete'}
-                cancelText={opts.cancelText ?? 'Cancel'}
+                title={opts?.title ?? 'bạn có muốn xoá không'}
+                description={opts?.description ?? 'thao tác xoá sẽ không thể hoàn tác'}
+                confirmText={opts?.confirmText ?? 'Delete'}
+                cancelText={opts?.cancelText ?? 'Cancel'}
             />
         );
     });

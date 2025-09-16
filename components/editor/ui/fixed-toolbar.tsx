@@ -1,3 +1,7 @@
+/*
+ * path: components/editor/ui/fixed-toolbar.tsx
+ */
+
 'use client';
 
 import { cn } from '@/lib/utils';

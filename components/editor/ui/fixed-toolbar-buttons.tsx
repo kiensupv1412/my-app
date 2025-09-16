@@ -1,3 +1,7 @@
+/*
+ * path: components/editor/ui/fixed-toolbar-buttons.tsx
+ */
+
 'use client';
 
 import * as React from 'react';
@@ -7,15 +11,19 @@ import {
   BaselineIcon,
   BoldIcon,
   Code2Icon,
+  Dock,
+  ExternalLink,
   HighlighterIcon,
   ItalicIcon,
+  Newspaper,
   PaintBucketIcon,
+  Rss,
   StrikethroughIcon,
   UnderlineIcon,
   WandSparklesIcon,
 } from 'lucide-react';
-import { KEYS } from 'platejs';
-import { useEditorReadOnly } from 'platejs/react';
+import { KEYS, serializeHtml } from 'platejs';
+import { createPlateEditor, useEditorReadOnly, useEditorRef } from 'platejs/react';
 
 import { AIToolbarButton } from './ai-toolbar-button';
 import { AlignToolbarButton } from './align-toolbar-button';
@@ -44,10 +52,19 @@ import { ModeToolbarButton } from './mode-toolbar-button';
 import { MoreToolbarButton } from './more-toolbar-button';
 import { TableToolbarButton } from './table-toolbar-button';
 import { ToggleToolbarButton } from './toggle-toolbar-button';
-import { ToolbarGroup } from './toolbar';
+import { ToolbarButton, ToolbarGroup } from './toolbar';
 import { TurnIntoToolbarButton } from './turn-into-toolbar-button';
+import { useContext } from 'react';
+import { ViewerContext } from '@/components/news/NewsEditorPage';
+import { BaseEditorKit } from '../editor-base-kit';
+import { serializeCleanHtml } from '@/lib/serializeCleanHtml';
+import { handlePreview } from '@/lib/editorManeger';
 
 export function FixedToolbarButtons() {
+  const editor = useEditorRef();
+
+  const viewerCtx = useContext(ViewerContext);
+  const setViewerOpen = viewerCtx?.setViewerOpen;
   const readOnly = useEditorReadOnly();
 
   return (
@@ -152,8 +169,6 @@ export function FixedToolbarButtons() {
         </>
       )}
 
-      <div className="grow" />
-
       <ToolbarGroup>
         <MarkToolbarButton nodeType={KEYS.highlight} tooltip="Highlight">
           <HighlighterIcon />
@@ -163,6 +178,25 @@ export function FixedToolbarButtons() {
 
       <ToolbarGroup>
         <ModeToolbarButton />
+      </ToolbarGroup>
+
+      {/* <div className="grow" /> */}
+      {/* fix */}
+      <ToolbarGroup>
+        <ToolbarButton tooltip="show SidebarRight"
+          onClick={() => setViewerOpen(true)}
+        >
+          <Rss color="#e32400" />
+        </ToolbarButton>
+        {/* show cái này ra khi click vào TableCellViewer */}
+      </ToolbarGroup>
+
+      <ToolbarGroup>
+        <ToolbarButton tooltip="preview html"
+          onClick={() => handlePreview(editor)}
+        >
+          <Newspaper color="#e32400" />
+        </ToolbarButton>
       </ToolbarGroup>
     </div>
   );

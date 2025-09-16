@@ -1,75 +1,123 @@
-const fs = require('fs')
-const {
-    listArticles,
-    listCategories,
-    getArticleById,
-    updateArticle,
-    bulkUpdateArticles,
-    updateThumb
-} = require('../models/article.model')
-const { getMediaById } = require('../models/media.model')
+const fs = require('fs');
+const Article = require('../models/article.model');
+const { getMediaById } = require('../models/media.model');
+const Category = require('../models/category.model');
 
+// Lấy tất cả articles
 async function getArticles(req, res, next) {
-    try {
-        const rows = await listArticles()
-        res.json(rows)
-    } catch (e) { next(e) }
+  try {
+    const rows = await Article.findAll({
+      order: [['id', 'DESC']],
+    });
+    res.json(rows);
+  } catch (e) {
+    next(e);
+  }
 }
 
+// Lấy tất cả categories 
 async function getCategories(req, res, next) {
-    try {
-        const rows = await listCategories()
-        res.json(rows)
-    } catch (e) { next(e) }
+  try {
+    const rows = await Category.findAll({
+      order: [['id', 'ASC']]
+    });
+    res.json(rows);
+  } catch (e) {
+    next(e);
+  }
 }
 
+// Lấy 1 article theo id
 async function getArticle(req, res, next) {
-    try {
-        const id = Number(req.params.id)
-        if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' })
-        const row = await getArticleById(id)
-        if (!row) return res.status(404).json({ error: 'Not found' })
-        res.json(row)
-    } catch (e) { next(e) }
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' });
+
+    const row = await Article.findByPk(id);
+    if (!row) return res.status(404).json({ error: 'Not found' });
+
+    res.json(row);
+  } catch (e) {
+    next(e);
+  }
 }
 
+// Tạo mới article
+async function postArticle(req, res, next) {
+  try {
+    const data = req.body;
+    const article = await Article.create(data);
+    res.json({ mess: 'ok', id: article.id });
+  } catch (e) {
+    next(e);
+  }
+}
+
+// Update 1 article (partial update theo body gửi lên)
 async function updateArticleOne(req, res, next) {
-    try {
-        const { id, body, textUpdate } = req.body
-        await updateArticle({ id, body, textUpdate })
-        res.json({ mess: 'ok', id })
-    } catch (e) { next(e) }
+  try {
+    const { id } = req.params;
+    const data = req.body; // chỉ cần field nào có thì update field đó
+
+    const [affectedRows] = await Article.update(data, { where: { id } });
+    if (affectedRows === 0) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    res.json({ mess: 'ok', id });
+  } catch (e) {
+    next(e);
+  }
 }
 
+// Bulk update articles
 async function updateArticleBulk(req, res, next) {
-    try {
-        const items = req.body || []
-        await bulkUpdateArticles(items)
-            // tuỳ: lưu file cache
-        fs.writeFileSync('data.json', JSON.stringify(items, null, 2))
-        res.json({ mess: 'ok' })
-    } catch (e) { next(e) }
+  try {
+    const items = req.body || [];
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'No items provided' });
+    }
+
+    // Với Sequelize, bạn có thể dùng bulkCreate + updateOnDuplicate
+    await Article.bulkCreate(items, {
+      updateOnDuplicate: ['title', 'slug', 'description', 'body', 'category_id', 'status', 'content'],
+    });
+
+    // tuỳ chọn: lưu cache
+    fs.writeFileSync('data.json', JSON.stringify(items, null, 2));
+
+    res.json({ mess: 'ok' });
+  } catch (e) {
+    next(e);
+  }
 }
 
+// Cập nhật thumbnail
 async function setThumb(req, res, next) {
-    try {
-        const id = Number(req.params.id)
-        const { media_id } = req.body
-        if (!Number.isFinite(id) || !Number.isFinite(Number(media_id))) {
-            return res.status(400).json({ error: 'Bad id/media_id' })
-        }
-        const media = await getMediaById(Number(media_id))
-        if (!media) return res.status(404).json({ error: 'Media not found' })
-        await updateThumb(id, media.url)
-        res.json({ mess: 'ok', id, thumb: media.url })
-    } catch (e) { next(e) }
+  try {
+    const id = Number(req.params.id);
+    const { media_id } = req.body;
+
+    if (!Number.isFinite(id) || !Number.isFinite(Number(media_id))) {
+      return res.status(400).json({ error: 'Bad id/media_id' });
+    }
+
+    const media = await getMediaById(Number(media_id));
+    if (!media) return res.status(404).json({ error: 'Media not found' });
+
+    await Article.update({ thumb: media.url }, { where: { id } });
+    res.json({ mess: 'ok', id, thumb: media.url });
+  } catch (e) {
+    next(e);
+  }
 }
 
 module.exports = {
-    getArticles,
-    getCategories,
-    getArticle,
-    updateArticleOne,
-    updateArticleBulk,
-    setThumb
-}
+  getArticles,
+  getCategories,
+  getArticle,
+  postArticle,
+  updateArticleOne,
+  updateArticleBulk,
+  setThumb,
+};

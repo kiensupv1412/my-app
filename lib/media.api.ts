@@ -214,6 +214,7 @@ export async function apiDeleteFolder(id: number): Promise<{ ok: boolean; id: nu
       rows: rows.map(normalizeMediaItem).filter(x => x && x.id && x.file_url)
     }
   }
+// path: /lib/media.api.ts
 
 export async function apiDeleteMedia(id: number): Promise<{ mess?: string; ok?: boolean; id: number }> {
   const url = apiBase() + '/media/' + String(id);

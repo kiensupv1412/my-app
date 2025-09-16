@@ -16,14 +16,14 @@ type ToastType = 'success' | 'error'
 type ToastItem = {
     id: string
     type: ToastType
-    title: string
+    title?: string
     description?: string
     open: boolean
 }
 
 const AppToastCtx = React.createContext<{
-    success: (title: string, description?: string) => void
-    error: (title: string, description?: string) => void
+    success: (title?: string, description?: string) => void
+    error: (title?: string, description?: string) => void
 } | null>(null)
 
 export function useAppToast() {

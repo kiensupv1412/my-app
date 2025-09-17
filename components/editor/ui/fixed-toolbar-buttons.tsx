@@ -55,14 +55,18 @@ import { ToggleToolbarButton } from './toggle-toolbar-button';
 import { ToolbarButton, ToolbarGroup } from './toolbar';
 import { TurnIntoToolbarButton } from './turn-into-toolbar-button';
 import { useContext } from 'react';
-import { ViewerContext } from '@/components/news/NewsEditorPage';
 import { BaseEditorKit } from '../editor-base-kit';
 import { serializeCleanHtml } from '@/lib/serializeCleanHtml';
 import { handlePreview } from '@/lib/editorManeger';
+import { useNewsEditor } from '@/components/providers/news-editor-provider';
+import { openModal } from '@/hooks/useMedia';
+import { TableCellViewer } from '@/components/modals/contents/TableCellViewer';
 
 export function FixedToolbarButtons() {
-  const editor = useEditorRef();
+  const descEditor = useEditorRef('description');
+  const contentEditor = useEditorRef('content');
   const readOnly = useEditorReadOnly();
+  const { article, categories, mode } = useNewsEditor();
 
   return (
     <div className="flex w-full flex-row flex-wrap">
@@ -181,16 +185,15 @@ export function FixedToolbarButtons() {
       {/* fix */}
       <ToolbarGroup>
         <ToolbarButton tooltip="show SidebarRight"
-        // onClick={ }
+          onClick={() => openModal(TableCellViewer, { article, categories, mode, descEditor, contentEditor })}
         >
           <Rss color="#e32400" />
         </ToolbarButton>
-        {/* show cái này ra khi click vào TableCellViewer */}
       </ToolbarGroup>
 
       <ToolbarGroup>
         <ToolbarButton tooltip="preview html"
-          onClick={() => handlePreview(editor)}
+          onClick={() => handlePreview(contentEditor)}
         >
           <Newspaper color="#e32400" />
         </ToolbarButton>

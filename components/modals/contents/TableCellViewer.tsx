@@ -19,23 +19,23 @@ import { plateToHtml } from '@/lib/editorManeger';
 import { createArticleOptimistic, updateArticleOptimistic } from '@/hooks/useArticles';
 import { DrawerClose, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 
-type Mode = 'dashboard' | 'create' | 'edit';
+type Mode = 'news' | 'create' | 'edit';
 type Category = { id: number; name: string; slug?: string };
 
-export function ViewerContent({
-    item,
+export function TableCellViewer({
+    article,
     categories,
-    mode = 'dashboard',
-    editor,
-    descRef,
+    mode = 'news',
+    descEditor,
+    contentEditor,
     onResolve,
     onClose,
 }: {
-    item: any | null;
+    article: any | null;
     categories: Category[];
     mode?: Mode;
-    editor?: any;
-    descRef?: any;
+    descEditor?: any;
+    contentEditor?: any;
     onResolve: (v: void) => void;
     onClose: () => void;
 }) {
@@ -44,20 +44,20 @@ export function ViewerContent({
     const [loading, setLoading] = useState(false);
 
     const [form, setForm] = useState({
-        title: item?.title ?? '',
-        slug: item?.slug ?? '',
-        category: String(item?.category_id ?? ''),
-        status: item?.status ?? '',
+        title: article?.title ?? '',
+        slug: article?.slug ?? '',
+        category: String(article?.category_id ?? ''),
+        status: article?.status ?? '',
     });
 
     useEffect(() => {
         setForm({
-            title: item?.title ?? '',
-            slug: item?.slug ?? '',
-            category: String(item?.category_id ?? ''),
-            status: item?.status ?? '',
+            title: article?.title ?? '',
+            slug: article?.slug ?? '',
+            category: String(article?.category_id ?? ''),
+            status: article?.status ?? '',
         });
-    }, [item]);
+    }, [article]);
 
     const handleChange = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -71,20 +71,20 @@ export function ViewerContent({
                 category_id: form.category,
             };
 
-            if (mode !== 'dashboard') {
+            if (mode !== 'news') {
                 payload = {
                     ...payload,
-                    description: descRef?.current?.getHtml?.(),
-                    body: await plateToHtml(editor),
-                    content: JSON.stringify(editor?.children ?? []),
+                    description: "",
+                    body: await plateToHtml(contentEditor),
+                    content: JSON.stringify(contentEditor?.children ?? []),
                 };
             }
 
             if (mode === 'create') {
                 await createArticleOptimistic(payload);
-                router.push('/dashboard');
+                router.push('/news');
             } else {
-                await updateArticleOptimistic(item?.id, payload);
+                await updateArticleOptimistic(article?.id, payload);
             }
 
             success();
@@ -98,23 +98,23 @@ export function ViewerContent({
         }
     }
 
-    if (!item && mode !== 'create') return null;
+    if (!article && mode !== 'create') return null;
 
     return (
         <>
             <DrawerHeader className="gap-1">
-                <DrawerTitle>{item?.title}</DrawerTitle>
+                <DrawerTitle>{article?.title}</DrawerTitle>
                 <DrawerDescription>
                     Showing total visitors for the last 6 months
                 </DrawerDescription>
             </DrawerHeader>
             <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
                 {/* Header (trước đây là DrawerHeader) */}
-                {item?.thumb && (
+                {article?.thumb && (
                     <AspectRatio ratio={16 / 9}>
                         <MediaThumb
-                            src={item.thumb}
-                            alt={item?.title ?? 'thumbnail'}
+                            src={article.thumb}
+                            alt={article?.title ?? 'thumbnail'}
                             className="h-full w-full rounded-lg object-cover dark:brightness-[0.2] dark:grayscale"
                         />
                     </AspectRatio>

@@ -55,8 +55,8 @@ const user = {
 
 const navigation = [
   {
-    title: "Dashboard",
-    url: "/dashboard",
+    title: "News",
+    url: "/news",
     icon: IconDashboard,
   },
   {

@@ -1,63 +1,35 @@
+/*
+ * path: components/modals/ModalRoot.tsx
+ */
 'use client';
 
 import * as React from 'react';
-import dynamic from 'next/dynamic';
-import { usePathname } from 'next/navigation';
-import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/components/ui/drawer';
-import { useModalStore, closeModal, resolveModal } from '@/lib/useModal';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { useIsMobile } from '@/hooks/use-mobile';
-// import TableCellViewer from './contents/TableCellViewer';
-const TableCellViewer = dynamic(
-    () => import('./contents/TableCellViewer').then(m => m.ViewerContent),
-    { ssr: false }
-);
-const PickThumb = dynamic(
-    () => import('./contents/pickThumb').then(m => m.default),
-    { ssr: false }
-);
-const registry = {
-    viewer: { Component: TableCellViewer, title: 'Viewer' },
-    imagePicker: { Component: PickThumb, title: 'Chọn thumbnail', withWrapperHeader: false },
-} as const;
+import { closeModal, resolveModal, useModalStore } from '@/hooks/useMedia';
 
 export default function ModalRoot() {
+    const { open, payload } = useModalStore();
     const isMobile = useIsMobile();
-    const pathname = usePathname();
-    const { open, type, props } = useModalStore();
 
-    React.useEffect(() => { if (open) closeModal(); }, [pathname]);
+    if (!open || !payload) return null;
 
-    if (!type) return null;
+    const { Comp, props } = payload as any;
 
-    const entry = (registry as any)[type];
-    if (!entry) {
-        closeModal();
-        return null;
-    }
+    const onResolve = (v: unknown) => { resolveModal(v); closeModal(); };
+    const onClose = () => closeModal();
 
-    const { Component } = entry;
-
-    const content = (
-        <Component
-            {...props}
-            onResolve={(v: unknown) => {
-                resolveModal(v);
-                closeModal();
-            }
-            }
-            onClose={() => closeModal()}
-        />
-    );
+    const title = (Comp as any).displayName || (Comp as any).name || 'Modal';
 
     return (
-        <Drawer
-            open={open}
-            onOpenChange={(v) => { if (!v) closeModal(); }}
-            direction={isMobile ? 'bottom' : 'right'}>
-            <DrawerContent  >
-                <DrawerTitle></DrawerTitle> {/*    giữ nguyên hoặc truyền cho nó 1 title sẽ hết lỗi */}
-                {content}
+        <Drawer open={open} onOpenChange={(v) => !v && closeModal()} direction={isMobile ? 'bottom' : 'right'}>
+            <DrawerContent>
+                <DrawerHeader className="flex items-center justify-between">
+                    <DrawerTitle>{title}</DrawerTitle>
+                </DrawerHeader>
+
+                <Comp {...props} onResolve={onResolve} onClose={onClose} />
             </DrawerContent>
-        </Drawer >
+        </Drawer>
     );
 }

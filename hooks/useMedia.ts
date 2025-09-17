@@ -1,30 +1,55 @@
-import useSWR from 'swr'
-import { apiListFolders, apiListMedia } from '@/lib/media.api'
+/*
+* path: hooks/useMedia.ts
+*/
+'use client';
 
-export function useFolders() {
-    const { data, error, isLoading, mutate } = useSWR(
-        '/folders',
-        apiListFolders,
-        { revalidateOnFocus: false }
-    )
-    return { folders: data ?? [], error, isLoading, refetch: mutate }
+import React from 'react';
+import { useSyncExternalStore } from 'react';
+
+type ResolveFn = (v: unknown) => void;
+
+type ModalPayload<P = any> = {
+    Comp: React.ComponentType<P>;
+    props: P;
+};
+
+type State = {
+    open: boolean;
+    payload?: ModalPayload | null;
+    resolve?: ResolveFn;
+};
+
+let state: State = { open: false, payload: null };
+const listeners = new Set<() => void>();
+
+function setState(p: Partial<State>) {
+    state = { ...state, ...p };
+    listeners.forEach(l => l());
 }
 
-export function useMediaList(params: { page: number; pageSize: number; folder_id?: number | null }) {
-    const key = `/media?page=${params.page}&pageSize=${params.pageSize}` +
-        (params.folder_id !== null && params.folder_id !== undefined ? `&folder_id=${params.folder_id}` : '')
-
-    const { data, error, isLoading, mutate } = useSWR(
-        key,
-        () => apiListMedia(params),
-        { revalidateOnFocus: false, keepPreviousData: true as any }
-    )
-
-    return {
-        media: data?.rows ?? [],
-        total: data?.total ?? 0,
-        error, isLoading, refetch: mutate
-    }
+export function useModalStore() {
+    return useSyncExternalStore(
+        (l) => (listeners.add(l), () => listeners.delete(l)),
+        () => state,
+        () => state
+    );
 }
 
+// ✅ mở modal bằng Component + props
+export function openModal<P>(
+    Comp: React.ComponentType<P>,
+    props: Omit<P, 'onResolve' | 'onClose'>
+) {
+    return new Promise<unknown>((resolve) => {
+        setState({ open: true, payload: { Comp, props: props as P }, resolve });
+    });
+}
 
+export function resolveModal(v?: unknown) {
+    state.resolve?.(v);
+}
+
+export function closeModal(v?: unknown) {
+    if (v !== undefined) state.resolve?.(v);
+    setState({ open: false, payload: null, resolve: undefined });
+}

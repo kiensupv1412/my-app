@@ -93,8 +93,8 @@ import { confirmDelete } from '@/components/modals/confirm-delete-service';
 import { MediaThumb } from '../media/media-thumb'
 import { AspectRatio } from '../ui/aspect-ratio'
 import { useEditor } from '../editor/editor-kit'
-import { ViewerContext } from '../news/NewsEditorPage'
-import { openModal } from '../../lib/useModal';
+import { TableCellViewer } from '../modals/contents/TableCellViewer'
+import { openModal } from '@/hooks/useMedia'
 
 
 function formatDate(value: string | Date, opts: Intl.DateTimeFormatOptions = {}) {
@@ -255,7 +255,7 @@ export function DataArticles({
 
   const openTableCellViewer = React.useCallback(
     (item: z.infer<typeof schema>) => {
-      return openModal('viewer', { item, categories, mode: 'dashboard' });
+      return openModal(TableCellViewer, { article: item, categories, mode: 'news' });
     },
     [categories]
   );

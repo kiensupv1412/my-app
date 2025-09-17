@@ -2,9 +2,9 @@
  * path: server/models/category.model.js
  */
 const { DataTypes } = require('sequelize');
-const sequelize = require('./db');  
+const sequelize = require('./db');
 
-const Category = sequelize.define('Category', {
+const Category = sequelize.define('category', {
   id: {
     type: DataTypes.INTEGER.UNSIGNED,
     autoIncrement: true,
@@ -33,7 +33,10 @@ const Category = sequelize.define('Category', {
     defaultValue: 0,
   },
 }, {
-  tableName: 'category',
+  timestamps: true,
+  underscored: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
 });
 
 module.exports = Category;

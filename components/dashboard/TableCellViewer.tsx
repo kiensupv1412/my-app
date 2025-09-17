@@ -27,7 +27,6 @@ import { Separator } from "../ui/separator"
 import { IconTrendingUp } from "@tabler/icons-react"
 import { AspectRatio } from "../ui/aspect-ratio"
 import { Skeleton } from "@/components/ui/skeleton"
-import { postData, putData } from "@/lib/api";
 
 import { MediaThumb } from "../media/media-thumb"
 import { useEffect, useMemo, useState } from "react";
@@ -39,6 +38,8 @@ import { BaseEditorKit } from "../editor/editor-base-kit";
 import { serializeCleanHtml } from "@/lib/serializeCleanHtml";
 import React from "react";
 import { plateToHtml } from "@/lib/editorManeger";
+import { createArticleOptimistic, updateArticleOptimistic } from "@/hooks/useArticles";
+import { useRouter } from 'next/navigation';
 
 type Category = { id: string; name: string };
 type Props = {
@@ -54,6 +55,8 @@ type Props = {
 export function TableCellViewer({ mode, editor, item, categories, open, onOpenChange, descRef }: Props) {
     const isMobile = useIsMobile()
     const { success, error } = useAppToast();
+
+    const router = useRouter();
 
     const [loading, setLoading] = useState(false);
 
@@ -94,11 +97,13 @@ export function TableCellViewer({ mode, editor, item, categories, open, onOpenCh
         }
         try {
             if (mode == "create") {
-                await postData(`/article`, payload);
+                await createArticleOptimistic(payload);
+                router.push('/dashboard');
+
             }
 
             if (mode == "edit" || mode == "dashboard") {
-                await putData(`/article/update/${item?.id}`, payload);
+                await updateArticleOptimistic(item?.id, payload);
             }
             success()
         } catch (err) {

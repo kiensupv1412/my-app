@@ -3,7 +3,7 @@
  */
 const path = require('path');
 const { mkdirSync, existsSync } = require('fs');
-const Folder = require('../models/folder.model');
+const { Folder } = require('../models/folder.model');
 
 function slugify(s) {
   return String(s || '')

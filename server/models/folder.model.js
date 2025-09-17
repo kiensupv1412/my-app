@@ -23,4 +23,15 @@ const Folder = sequelize.define('media_folders', {
   underscored: true,    // map created_at, updated_at
 });
 
-module.exports = Folder;
+async function getFolderById(id) {
+  return Folder.findByPk(id, { attributes: ['id', 'slug', 'name', 'site'] });
+}
+async function getFolderBySlug(slug) {
+  return Folder.findOne({ where: { slug }, attributes: ['id', 'slug', 'name', 'site'] });
+}
+
+module.exports = {
+  Folder,
+  getFolderById,
+  getFolderBySlug,
+};

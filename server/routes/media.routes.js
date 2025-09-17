@@ -7,7 +7,7 @@ const ctrl = require('../controllers/media.controller');
 const { resolveFolderById } = require('../middleware/resolve-folder');
 
 // GET /media?page=&pageSize=&q=&folder_id=(null|id)
-router.get('/', ctrl.list);
+router.get('/', resolveFolderById, ctrl.list);
 
 // POST /media/upload?folder_id=... | body.folder_slug=...
 router.post(

@@ -8,143 +8,52 @@ import { MediaDetail } from '@/components/media/media-detail';
 import { UploadMediaDialog } from '@/components/media/upload-media-dialog';
 import { confirmDelete } from '@/components/modals/confirm-delete-service';
 import { useAppToast } from '@/components/providers/app-toast';
-import { useRootData } from '@/components/providers/root-data';
 import { Button } from '@/components/ui/button';
 import {
-    type MediaItem,
     type Folder,
     apiCreateFolder,
     apiDeleteMedia,
-    apiListFolders,
-    apiListMedia,
+    useFolders,
+    useMediaList,
 } from '@/lib/media.api';
 import { IconChevronLeft, IconPlus } from '@tabler/icons-react';
 import * as React from 'react';
 
 export default function MediaPage() {
-    const rd = useRootData();
-
-    /* ---- FOLDER STATE ---- */
-    const [folders, setFolders] = React.useState<Folder[]>([]);
+    const { success } = useAppToast();
     const [currentFolderId, setCurrentFolderId] = React.useState<number | null>(null);
-    const currentFolder = React.useMemo(
-        () => folders.find((f) => f.id === currentFolderId) || null,
-        [folders, currentFolderId],
+    const [page, setPage] = React.useState(1);
+    const [pageSize, setPageSize] = React.useState(48);
+
+    const { folders, isLoading: foldersLoading, refetch: refetchFolders } = useFolders();
+    const { media, total, isLoading: mediaLoading, refetch: refetchMedia } = useMediaList({ page, pageSize, folder_id: currentFolderId });
+    console.log("🚀 ~ MediaPage ~ media:", media)
+    const currentFolder = React.useMemo(() => folders.find((f) => f.id === currentFolderId) || null, [folders, currentFolderId],
     );
-
-    /* ---- MEDIA STATE ---- */
-    // giữ logic normalize ban đầu (SSR) để tránh màn trắng lúc đầu
-    const mediaRoot = rd && rd.media ? rd.media : { rows: [] };
-    const initialList = Array.isArray(mediaRoot.rows) ? mediaRoot.rows : [];
-    const normalized = initialList
-        .map((m: any) => normalizeMediaItem(m))
-        .filter((x) => x && x.id && x.file_url);
-
-    const [items, setItems] = React.useState<MediaItem[]>(normalized);
-
     // ⬇️ thêm state cho phân trang
-    const [page, setPage] = React.useState<number>(1);
-    const [pageSize, setPageSize] = React.useState<number>(48);
-    const [total, setTotal] = React.useState<number>(normalized.length || 0);
     const [loading, setLoading] = React.useState<boolean>(false);
-    const { success, error } = useAppToast();
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-    function normalizeMediaItem(m: any): MediaItem {
-        return {
-            id: Number(m?.id ?? 0),
-            site: m?.site,
-            user_id: m?.user_id,
-            media_type: m?.media_type ? String(m.media_type) : undefined,
-            uuid: m?.uuid ? String(m.uuid) : undefined,
-            name:
-                m?.name ? String(m.name) :
-                    m?.original_name ? String(m.original_name) :
-                        m?.file_name ? String(m.file_name) : 'Untitled',
-            file_name:
-                m?.file_name ? String(m.file_name) :
-                    m?.stored_name ? String(m.stored_name) : '',
-            file_url:
-                m?.file_url ? String(m.file_url) :
-                    m?.url ? String(m.url) : '',
-            file_size:
-                m?.file_size !== undefined ? Number(m.file_size) :
-                    m?.size !== undefined ? Number(m.size) : 0,
-            mime: m?.mime ? String(m.mime) : 'application/octet-stream',
-            alt: m?.alt ?? null,
-            caption: m?.caption ?? null,
-            thumbnail: m?.thumbnail ?? null,
-            width: m?.width !== undefined ? Number(m.width) : null,
-            height: m?.height !== undefined ? Number(m.height) : null,
-            created_at: m?.created_at,
-            updated_at: m?.updated_at,
-        };
-    }
-
-    // 1) load folders lúc mount
-    React.useEffect(() => {
-        apiListFolders()
-            .then(setFolders)
-            .catch((e) => console.error('[folders]', e));
-    }, []);
-
-    // 2) fetch media: MẶC ĐỊNH lấy TẤT CẢ ẢNH (không lọc folder) + có phân trang
-    React.useEffect(() => {
-        (async () => {
-            setLoading(true);
-            try {
-                const res = await apiListMedia({
-                    page,
-                    pageSize,
-                    ...(currentFolderId === null ? {} : { folder_id: currentFolderId }),
-                });
-                const list = Array.isArray(res?.rows) ? res.rows : [];
-                setItems(list.filter((x: any) => x && x.id && (x.file_url || x.url)));
-                setTotal(Number(res?.total ?? list.length ?? 0));
-            } catch (e) {
-                console.error('[media list]', e);
-            } finally {
-                setLoading(false);
-            }
-        })();
-    }, [currentFolderId, page, pageSize]);
 
     async function handleCreateFolder() {
         const name = prompt('Tên folder mới:');
         if (!name) return;
-        try {
-            // giả sử site = 1
-            const f = await apiCreateFolder(name, 1);
-            setFolders((prev) => [...prev, f]);
-        } catch (e) {
-            console.error('Create folder error:', e);
-        }
+        await apiCreateFolder(name, 1);
+        refetchFolders();
     }
 
     async function handleDelete(id: number) {
-        try {
-            const ok = await confirmDelete({
-                title: `Xoá ảnh`,
-                description: 'Ảnh sẽ bị xoá vĩnh viễn. Bạn chắc chứ?',
-                confirmText: 'Xoá',
-                cancelText: 'Huỷ',
-            });
-            if (!ok) return;
-            await apiDeleteMedia(id);
-            const nextCount = items.length - 1;
-            if (nextCount <= 0 && page > 1) {
-                setPage((p) => Math.max(1, p - 1));
-            } else {
-                setItems((prev) => prev.filter((x) => x.id !== id));
-                setTotal((t) => Math.max(0, t - 1));
-            }
-            success();
-        } catch (e) {
-            console.error('Delete error:', e);
-        }
+        const ok = await confirmDelete({
+            title: `Xoá ảnh`,
+            description: 'Ảnh sẽ bị xoá vĩnh viễn. Bạn chắc chứ?',
+            confirmText: 'Xoá',
+            cancelText: 'Huỷ',
+        });
+        if (!ok) return;
+        await apiDeleteMedia(id);
+        refetchMedia();
+        success();
     }
-
     /* ---- UI: Folder card (giữ nguyên markup cũ) ---- */
     function FolderCard({ f, onOpen }: { f: Folder; onOpen?: (id: number) => void }) {
         const itemText =
@@ -226,11 +135,10 @@ export default function MediaPage() {
                     </div>
                 </div>
                 <UploadMediaDialog
-                    setItems={setItems}
                     currentFolderId={currentFolderId}
                     onUploaded={() => {
-                        // sau upload → refetch trang hiện tại
                         setPage(1);
+                        refetchMedia();   // ✅ gọi lại SWR
                     }}
                 >
                     <Button variant="outline" size="sm">
@@ -262,7 +170,7 @@ export default function MediaPage() {
                     </div>
                 </div>
                 <UploadMediaDialog
-                    setItems={setItems}
+                    media={media}
                     currentFolderId={currentFolderId}
                     onUploaded={() => setPage(1)}
                 >
@@ -279,7 +187,6 @@ export default function MediaPage() {
         <div className="flex flex-col h-full p-6 space-y-4">
             <div className='space-y-4'>
                 <FolderHeader />
-                {/* GRID 1: FOLDERS (giữ nguyên như cũ) */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
                     {currentFolderId === null && (
                         <>
@@ -301,7 +208,6 @@ export default function MediaPage() {
                                     </div>
                                 </div>
                             </button>
-
                             {folders.map((f) => (
                                 <FolderCard key={f.id} f={f} onOpen={setCurrentFolderId} />
                             ))}
@@ -316,7 +222,7 @@ export default function MediaPage() {
                     )}
 
                     {!loading &&
-                        items.map((m) => (
+                        media.map((m) => (
                             <MediaDetail
                                 key={m.id}
                                 item={{
@@ -338,7 +244,7 @@ export default function MediaPage() {
                             />
                         ))}
 
-                    {!loading && items.length === 0 && (
+                    {!loading && media.length === 0 && (
                         <div className="col-span-full py-6 text-center text-sm text-muted-foreground">Không có ảnh nào.</div>
                     )}
                 </div>

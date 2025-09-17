@@ -1,3 +1,7 @@
+/*
+ * path: lib/editorManeger.ts
+ */
+
 import { BaseEditorKit } from "@/components/editor/editor-base-kit";
 import { EditorKit } from "@/components/editor/editor-kit";
 import { createPlateEditor, ParagraphPlugin, usePlateEditor } from "platejs/react";
@@ -37,42 +41,89 @@ export async function plateToHtml(editor: any) {
     return serializeCleanHtml(await serializeHtml(serializeEditor));
 }
 
-export function handleEditor({ mode, editor, defaultValue }: {
-    mode: 'create' | 'edit',
-    editor: any,
-    defaultValue?: string | [],
-}) {
-    if (!editor) return;
-    let valueType: [] | { type: string; value: any[]; } = [];
+type SlateNodes = any[]; // thay bằng type thực tế nếu có
 
-    if (mode === 'edit')
-        valueType = detectContentType(defaultValue);
-    if (mode === 'edit' && valueType?.type === 'html') {
-        const element = parseHtmlElement(defaultValue as string);
-        const nodes = editor.api.html.deserialize({
-            element,
-            collapseWhiteSpace: false,
-            defaultElementPlugin: ParagraphPlugin.withComponent(ParagraphElement),
-        });
-        editor.tf.setValue(nodes);
-    } else if (mode === 'edit' && valueType?.type === 'node') {
-        editor.tf.setValue(valueType.value);
-    } else if (mode === 'create') {
-        editor.tf.setValue(valueType);
-    }
+type DetectResult =
+    | { kind: 'nodes'; value: SlateNodes }
+    | { kind: 'html'; value: string }
+    | { kind: 'empty' };
+
+function isSlateNodes(v: unknown): v is SlateNodes {
+    return Array.isArray(v) && (v.length === 0 || v[0]?.children);
 }
 
+function detectContentType(input: unknown): DetectResult {
+    if (input == null) return { kind: 'empty' };
 
-function detectContentType(str: string) {
-    try {
-        const parsed = JSON.parse(str);
-        if (Array.isArray(parsed) && parsed[0]?.children) {
-            return { type: "node", value: parsed };
-        }
-    } catch {
+    // 1) Đã là nodes
+    if (isSlateNodes(input)) return { kind: 'nodes', value: input };
+
+    // 2) Là string
+    if (typeof input === 'string') {
+        const s = input.trim();
+        // 2a) Thử JSON → nodes
+        try {
+            const parsed = JSON.parse(s);
+            if (isSlateNodes(parsed)) return { kind: 'nodes', value: parsed };
+        } catch {/* ignore */ }
+
+        // 2b) HTML string
+        if (s.startsWith('<')) return { kind: 'html', value: s };
+
+        // 2c) Rỗng/không hợp lệ
+        if (!s) return { kind: 'empty' };
     }
 
-    if (str.trim().startsWith("<")) {
-        return { type: "html", value: str };
+    return { kind: 'empty' };
+}
+
+// Idempotent: chỉ setValue khi thực sự có nội dung mới
+export function handleEditor({
+    mode,
+    editor,
+    defaultValue,
+}: {
+    mode: 'create' | 'edit';
+    editor: any;
+    defaultValue?: unknown; // cho phép string | nodes | null
+}) {
+    if (!editor) return;
+
+    const detected = detectContentType(defaultValue);
+
+    let nextValue: SlateNodes = [];
+
+    if (mode === 'create') {
+        // để rỗng
+        nextValue = [];
+    } else {
+        // edit
+        if (detected.kind === 'nodes') {
+            nextValue = detected.value ?? [];
+        } else if (detected.kind === 'html') {
+            const el = document.createElement('div');
+            el.innerHTML = detected.value;
+            const element = el; // hoặc parseHtmlElement(el) nếu cần Element đã chuẩn hoá
+            const nodes = editor.api.html.deserialize({
+                element,
+                collapseWhiteSpace: false,
+                defaultElementPlugin: ParagraphPlugin.withComponent(ParagraphElement),
+            });
+            nextValue = nodes ?? [];
+        } else {
+            nextValue = [];
+        }
+    }
+
+    // tránh set lại y chang (gây lag)
+    const curr = editor.children as SlateNodes;
+    const same =
+        Array.isArray(curr) &&
+        Array.isArray(nextValue) &&
+        curr.length === nextValue.length &&
+        JSON.stringify(curr) === JSON.stringify(nextValue);
+
+    if (!same) {
+        editor.tf.setValue(nextValue);
     }
 }

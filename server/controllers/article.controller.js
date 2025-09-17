@@ -8,8 +8,22 @@ async function getArticles(req, res, next) {
   try {
     const rows = await Article.findAll({
       order: [['id', 'DESC']],
+      include: [
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name'],
+        },
+      ],
     });
-    res.json(rows);
+    const merged = rows.map(a => {
+      const plain = a.get({ plain: true });
+      return {
+        ...plain,
+        category_name: plain.category?.name ?? null,
+      };
+    });
+    res.json(merged);
   } catch (e) {
     next(e);
   }
@@ -47,7 +61,7 @@ async function postArticle(req, res, next) {
   try {
     const data = req.body;
     const article = await Article.create(data);
-    res.json({ mess: 'ok', id: article.id });
+    res.json(article);
   } catch (e) {
     next(e);
   }
@@ -64,7 +78,19 @@ async function updateArticleOne(req, res, next) {
       return res.status(404).json({ error: 'Not found' });
     }
 
-    res.json({ mess: 'ok', id });
+    const updated = await Article.findByPk(id, {
+      include: [
+        {
+          model: Category,
+          as: 'category',
+          attributes: ['id', 'name'],
+        },
+      ],
+    });
+
+    const plain = updated.get({ plain: true });
+
+    res.json(plain);
   } catch (e) {
     next(e);
   }

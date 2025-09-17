@@ -1,3 +1,7 @@
+/*
+ * path: components/dashboard/data-articles.tsx
+ */
+
 "use client"
 
 import { useAppToast } from '@/components/providers/app-toast'
@@ -89,6 +93,7 @@ import { confirmDelete } from '@/components/modals/confirm-delete-service';
 import { TableCellViewer } from './TableCellViewer'
 import { MediaThumb } from '../media/media-thumb'
 import { AspectRatio } from '../ui/aspect-ratio'
+import { useEditor } from '../editor/editor-kit'
 
 
 function formatDate(value: string | Date, opts: Intl.DateTimeFormatOptions = {}) {
@@ -108,7 +113,6 @@ export const schema = z.object({
   status: z.string(),
   thumb: z.string(),
   updated_at: z.string(),
-  reviewer: z.string(),
 })
 
 export const schemaCategory = z.array(
@@ -150,15 +154,16 @@ function getColumns(categories: z.infer<typeof schemaCategory>[]): ColumnDef<z.i
 
     },
     {
-      accessorKey: "category_name",
+      accessorKey: "category_id",
       header: "Category",
-      cell: ({ row }) => (
-        <div className="w-32">
+      cell: ({ row }) => {
+        const cat = categories.find(c => c.id === row.original.category_id);
+        return (
           <Badge variant="secondary" className="text-muted-foreground px-1.5">
-            {row.original.category_name}
+            {cat?.name ?? "—"}
           </Badge>
-        </div>
-      ),
+        )
+      }
     },
     {
       header: "Status",
@@ -239,9 +244,17 @@ export function DataArticles({
   data: z.infer<typeof schema>[]
   categories: z.infer<typeof schemaCategory>[]
 }) {
-  const { success, error } = useAppToast();
+
   const [data, setData] = React.useState(() => initialData)
   const [categories, setCategories] = React.useState(() => initialCategories)
+
+  React.useEffect(() => {
+    setData(initialData)
+    setCategories(initialCategories)
+  }, [initialData, initialCategories])
+
+  const { success, error } = useAppToast();
+
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
@@ -338,14 +351,14 @@ export function DataArticles({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem
-                onClick={() => table.getColumn('category_name')?.setFilterValue(undefined)}
+                onClick={() => table.getColumn('category_id')?.setFilterValue(undefined)}
                 className="font-medium"
               >
                 Tất cả
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               {categories.map((cat) => {
-                const isActive = table.getColumn('category_name')?.getFilterValue() === cat.name
+                const isActive = table.getColumn('category_id')?.getFilterValue() === cat.name
                 return (
                   <DropdownMenuCheckboxItem
                     key={cat.id}
@@ -353,9 +366,9 @@ export function DataArticles({
                     // chọn 1 category sẽ set filter về đúng tên category
                     onCheckedChange={(checked) => {
                       if (checked) {
-                        table.getColumn('category_name')?.setFilterValue(cat.name)
+                        table.getColumn('category_id')?.setFilterValue(cat.name)
                       } else {
-                        table.getColumn('category_name')?.setFilterValue(undefined)
+                        table.getColumn('category_id')?.setFilterValue(undefined)
                       }
                     }}
                     className="capitalize"

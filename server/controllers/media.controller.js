@@ -6,7 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { filePublicUrl } = require('../helpers/file');
-const Media = require('../models/media.model');  
+const Media = require('../models/media.model');
 let PUBLIC_DIR = null;
 
 try {
@@ -14,7 +14,7 @@ try {
   if (up && typeof up.PUBLIC_DIR === 'string' && up.PUBLIC_DIR.length) {
     PUBLIC_DIR = up.PUBLIC_DIR;
   }
-} catch (e) {}
+} catch (e) { }
 if (!PUBLIC_DIR) {
   PUBLIC_DIR = path.join(process.cwd(), 'public');
 }
@@ -150,11 +150,21 @@ async function list(req, res, next) {
     const site = req.query.site ? Number(req.query.site) : undefined;
     const user_id = req.query.user_id ? Number(req.query.user_id) : undefined;
 
-    let folder_id = undefined;
-    if (req.query.folder_id !== undefined) {
-      const raw = String(req.query.folder_id).toLowerCase();
-      folder_id = (raw === 'null') ? null : Number(raw);
-      if (raw !== 'null' && !Number.isFinite(folder_id)) folder_id = undefined;
+    // ✅ ƯU TIÊN middleware resolve-folder nếu có
+    let folder_id = (Object.prototype.hasOwnProperty.call(req, '_folderId'))
+      ? req._folderId  // có thể là null hoặc number
+      : undefined;
+
+    // ✅ Nếu chưa có từ middleware, set mặc định = ROOT (null)
+    if (folder_id === undefined) {
+      folder_id = null; // mặc định khi /media không chỉ định -> chỉ lấy ở uploads/
+      if (req.query.folder_id !== undefined) {
+        const raw = String(req.query.folder_id).trim().toLowerCase();
+        if (raw !== '' && raw !== 'null') {
+          const n = Number(raw);
+          if (Number.isFinite(n)) folder_id = n; // user cố tình chỉ định 1 folder cụ thể
+        }
+      }
     }
 
     const where = {};
@@ -162,7 +172,9 @@ async function list(req, res, next) {
     if (media_type) where.media_type = media_type;
     if (Number.isFinite(site)) where.site = site;
     if (Number.isFinite(user_id)) where.user_id = user_id;
-    if (folder_id === null) where.folder_id = null;
+
+    // ✅ lọc theo folder: null = ROOT
+    if (folder_id === null) where.folder_id = null;        // Sequelize sẽ sinh IS NULL
     else if (Number.isFinite(folder_id)) where.folder_id = folder_id;
 
     const { rows, count: total } = await Media.findAndCountAll({

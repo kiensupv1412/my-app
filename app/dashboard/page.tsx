@@ -1,11 +1,16 @@
+/*
+ * path: app/dashboard/page.tsx
+ */
+
 'use client';
 
 import { DataArticles } from "@/components/dashboard/data-articles";
-import { useRootData } from '@/components/providers/root-data';
+import { useArticles, useCategories, createArticleOptimistic, updateArticleOptimistic } from '@/hooks/useArticles';
 
 
 export default function Page() {
-  const { articles, categories } = useRootData();
+  const { articles } = useArticles();
+  const { categories } = useCategories();
 
   return (
     <div className="@container/main flex flex-1 min-h-0 flex-col gap-2">

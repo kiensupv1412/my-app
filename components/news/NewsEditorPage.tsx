@@ -5,8 +5,7 @@
 
 import { PlateEditor } from '@/components/editor/plate-editor';
 import InlineEditor, { InlineEditorHandle } from '@/components/ui/description-edit';
-import { createContext, useEffect, useRef, useState } from 'react';
-import { useRootData } from '../providers/root-data';
+import { createContext, useEffect, useMemo, useRef, useState } from 'react';
 import { TableCellViewer } from '../dashboard/TableCellViewer';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
@@ -19,6 +18,7 @@ import { EditorContainer } from '../editor/ui/editor';
 import React from 'react';
 import { ParagraphElement } from '../editor/ui/paragraph-node';
 import { handleEditor } from '@/lib/editorManeger';
+import { useArticles, useCategories } from '@/hooks/useArticles';
 
 type Mode = 'create' | 'edit';
 type Props = {
@@ -30,27 +30,29 @@ export const ViewerContext = createContext<any>(null);
 
 export default function NewsEditorScreen({ mode, articleId }: Props) {
     const [viewerOpen, setViewerOpen] = useState(false);
-    const { articles, categories } = useRootData();
+    const { articles } = useArticles();
+    const { categories } = useCategories();
 
     const descRef = useRef<InlineEditorHandle>(null);
 
     let article: any = null;
-    let defaultValue: any = null;
 
     if (mode === 'edit') {
         article = articles.find((a: any) => String(a.id) === String(articleId)) ?? null;
-        defaultValue = article?.content
-            ? article.content
-            : article?.body ?? null;
     }
 
     const editor = usePlateEditor({
         plugins: EditorKit,
         value: [],
     });
+    const initial = useMemo(() => article?.content ?? article?.body ?? null, [article]);
     useEffect(() => {
-        handleEditor({ mode, editor, defaultValue });
-    }, [mode, defaultValue, editor]);
+        if (!editor || initial == null) return;
+        handleEditor({ mode, editor, defaultValue: initial });
+        // guard để StrictMode dev không chạy 2 lần
+        // hoặc check editor.children.length === 0 trước khi set
+    }, [editor, initial, mode]);
+
 
     return (
         <ViewerContext.Provider value={{ viewerOpen, setViewerOpen }}>

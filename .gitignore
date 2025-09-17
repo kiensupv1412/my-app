@@ -40,3 +40,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 server/modules/gsc/service_account.json
+**server/public/**

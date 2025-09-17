@@ -1,11 +1,14 @@
 /*
  * path: hooks/useArticles.ts
  */
+'use client';
+
 import useSWR, { mutate } from 'swr';
 import { fetcher } from '@/lib/fetcher';
 
-const BASE_URL = "http://localhost:4000"
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:4000";
 
+/** Lấy tất cả (giữ lại nếu còn dùng nơi khác) */
 export function useArticles() {
     const { data, error, isLoading } = useSWR(BASE_URL + '/article', fetcher, { revalidateOnFocus: false });
     return { articles: data ?? [], error, isLoading };
@@ -16,45 +19,66 @@ export function useCategories() {
     return { categories: data ?? [], error, isLoading };
 }
 
-// POST/PUT helpers có optimistic update
+/** ✅ Lấy MỘT TRANG theo page/limit (không dùng swr/infinite) */
+export function useArticlesPage(page = 1, limit = 10) {
+    const key = `${BASE_URL.replace(/\/$/, '')}/article?page=${page}&limit=${limit}`;
+    const { data, error, isLoading } = useSWR(key, fetcher, { revalidateOnFocus: false });
+
+    let items: any[] = [];
+    let meta: { page: number; limit: number; total?: number; hasNext?: boolean } = { page, limit };
+
+    if (Array.isArray(data)) {
+        items = data;
+        meta = { page, limit, hasNext: items.length === limit };
+    } else if (data && typeof data === 'object') {
+        items = Array.isArray(data.data) ? data.data : [];
+        meta = {
+            page: data?.meta?.page ?? page,
+            limit: data?.meta?.limit ?? limit,
+            total: data?.meta?.total,
+            hasNext: data?.meta?.hasNext,
+        };
+    }
+
+    return { data: items, meta, error, isLoading };
+}
+
+/* ===== Helpers giữ nguyên ===== */
+
 export async function createArticleOptimistic(newItem: any) {
     const key = BASE_URL + '/article';
 
     await mutate(key, async (current: any[] = []) => {
-        // 1) Optimistic: thêm bản ghi tạm
         const tmpId = `tmp_${Date.now()}`;
         const optimistic = [{ ...newItem, id: tmpId, _optimistic: true }, ...current];
 
-        // 2) Gọi API
         try {
-            const res = await fetch(key, { method: 'POST', body: JSON.stringify(newItem), headers: { 'Content-Type': 'application/json' } });
+            const res = await fetch(key, {
+                method: 'POST',
+                body: JSON.stringify(newItem),
+                headers: { 'Content-Type': 'application/json' },
+            });
             if (!res.ok) throw new Error('POST failed');
             const created = await res.json();
-
-            // 3) Hợp nhất: thay bản ghi tạm bằng bản ghi thật
             return [created, ...current];
-        } catch (e) {
-            // rollback: trả lại current nếu lỗi
+        } catch {
             return current;
         }
-    }, { revalidate: false }); // không gọi lại API nữa (đã tự merge)
+    }, { revalidate: false });
 }
 
 export async function updateArticleOptimistic(id: string, patch: any) {
     const listKey = BASE_URL + '/article';
     const detailKey = BASE_URL + `/article/update/${id}`;
 
-    // Cập nhật list
     await mutate(listKey, async (current: any[] = []) => {
         const prev = current;
         const idx = prev.findIndex(x => String(x.id) === String(id));
         if (idx === -1) return prev;
 
-        const updatedLocal = { ...prev[idx], ...patch };
         const optimistic = [...prev];
-        optimistic[idx] = updatedLocal;
+        optimistic[idx] = { ...prev[idx], ...patch };
 
-        // gọi API
         try {
             const res = await fetch(detailKey, {
                 method: 'PUT',
@@ -62,14 +86,14 @@ export async function updateArticleOptimistic(id: string, patch: any) {
                 headers: { 'Content-Type': 'application/json' }
             });
             if (!res.ok) throw new Error('PUT failed');
+
             const serverData = await res.json();
             const merged = [...prev];
             merged[idx] = serverData;
-            // đồng bộ luôn cache detail (nếu trang chi tiết đang mở)
             mutate(detailKey, serverData, false);
             return merged;
-        } catch (e) {
-            return prev; // rollback
+        } catch {
+            return prev;
         }
     }, { revalidate: false });
 }

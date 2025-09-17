@@ -1,3 +1,7 @@
+/*
+ * path: server/controllers/article.controller.js
+ */
+
 const fs = require('fs');
 const Article = require('../models/article.model');
 const { getMediaById } = require('../models/media.model');
@@ -6,8 +10,14 @@ const Category = require('../models/category.model');
 // Lấy tất cả articles
 async function getArticles(req, res, next) {
   try {
-    const rows = await Article.findAll({
+    const page = Math.max(parseInt(req.query.page ?? '1', 10) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit ?? '10', 10) || 10, 1);
+    const offset = (page - 1) * limit;
+
+    const { rows, count } = await Article.findAndCountAll({
       order: [['id', 'DESC']],
+      limit,
+      offset,
       include: [
         {
           model: Category,
@@ -16,14 +26,16 @@ async function getArticles(req, res, next) {
         },
       ],
     });
-    const merged = rows.map(a => {
-      const plain = a.get({ plain: true });
-      return {
-        ...plain,
-        category_name: plain.category?.name ?? null,
-      };
+
+    res.json({
+      data: rows,
+      meta: {
+        page,
+        limit,
+        total: count,
+        hasNext: offset + rows.length < count,
+      },
     });
-    res.json(merged);
   } catch (e) {
     next(e);
   }

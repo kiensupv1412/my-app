@@ -1,110 +1,47 @@
 /*
  * path: components/dashboard/data-articles.tsx
  */
-
 "use client"
 
-import { useAppToast } from '@/components/providers/app-toast'
 import {
-  IconChevronDown,
-  IconChevronLeft,
-  IconChevronRight,
-  IconChevronsLeft,
-  IconChevronsRight,
-  IconCircleCheckFilled,
-  IconDotsVertical,
-  IconEyeOff,
-  IconLayoutColumns,
-  IconPlus,
-  IconTrash,
-  IconTrendingUp
+  IconChevronDown, IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight,
+  IconCircleCheckFilled, IconDotsVertical, IconEyeOff, IconLayoutColumns, IconPlus, IconTrash
 } from "@tabler/icons-react"
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
-  flexRender,
-  getCoreRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable
+  ColumnDef, ColumnFiltersState, SortingState, VisibilityState,
+  flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
+  getSortedRowModel, getFacetedRowModel, getFacetedUniqueValues, useReactTable
 } from "@tanstack/react-table"
 import * as React from "react"
 import { z } from "zod"
-
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart"
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table"
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
+  Tabs, TabsContent, TabsList, TabsTrigger
 } from "@/components/ui/tabs"
-import { useIsMobile } from "@/hooks/use-mobile"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { confirmDelete } from '@/components/modals/confirm-delete-service';
 import { MediaThumb } from '../media/media-thumb'
-import { AspectRatio } from '../ui/aspect-ratio'
-import { useEditor } from '../editor/editor-kit'
 import { TableCellViewer } from '../modals/contents/TableCellViewer'
 import { openModal } from '@/hooks/useMedia'
-
+import { useAppToast } from '@/components/providers/app-toast'
 
 function formatDate(value: string | Date, opts: Intl.DateTimeFormatOptions = {}) {
   const date = value instanceof Date ? value : new Date(value)
-  return new Intl.DateTimeFormat("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-    ...opts,
-  }).format(date)
+  return new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "2-digit", ...opts }).format(date)
 }
 
 export const schema = z.object({
@@ -116,83 +53,60 @@ export const schema = z.object({
   updated_at: z.string(),
 })
 
-export const schemaCategory = z.array(
-  z.object({
-    id: z.number(),
-    name: z.string(),
-    slug: z.string(),
-  })
-);
+export const schemaCategory = z.array(z.object({
+  id: z.number(),
+  name: z.string(),
+  slug: z.string(),
+}))
 
-
-
-
-function getColumns(categories: z.infer<typeof schemaCategory>[], openTableCellViewer: (item: z.infer<typeof schema>) => Promise<void>): ColumnDef<z.infer<typeof schema>>[] {
-
+function getColumns(
+  categories: z.infer<typeof schemaCategory>[],
+  openTableCellViewer: (item: z.infer<typeof schema>) => Promise<void>
+): ColumnDef<z.infer<typeof schema>>[] {
   return [
-    {
-      header: "id",
-      cell: ({ row }) =>
-        <span className="text-sm text-primary">{row.original.id}</span>,
-      meta: { className: "text-center" }
-    },
+    { header: "id", cell: ({ row }) => <span className="text-sm text-primary">{row.original.id}</span>, meta: { className: "text-center" } },
     {
       header: "Thumbnail",
       cell: ({ row }) =>
         <div className="relative h-14 w-[100px]">
-          <MediaThumb
-            src={row.original.thumb}
-            alt={row.original.title ?? "thumbnail"}
-            className="h-full w-full rounded-lg object-cover dark:brightness-[0.2] dark:grayscale"
-          />
-        </div>,
-      meta: { className: "" }
+          <MediaThumb src={row.original.thumb} alt={row.original.title ?? "thumbnail"}
+            className="h-full w-full rounded-lg object-cover dark:brightness-[0.2] dark:grayscale" />
+        </div>
     },
     {
       accessorKey: "title",
       header: "Title",
       cell: ({ row }) =>
-        <Button variant="link" onClick={() => openTableCellViewer(row.original)}>{row.original.title}</Button>
-      ,
+        <Button variant="link" onClick={() => openTableCellViewer(row.original)}>{row.original.title}</Button>,
       enableHiding: false,
       meta: { className: "whitespace-normal" }
-
     },
     {
       accessorKey: "category_id",
       header: "Category",
       cell: ({ row }) => {
         const cat = categories.find(c => c.id === row.original.category_id);
-        return (
-          <Badge variant="secondary" className="text-muted-foreground px-1.5">
-            {cat?.name ?? "—"}
-          </Badge>
-        )
+        return <Badge variant="secondary" className="text-muted-foreground px-1.5">{cat?.name ?? "—"}</Badge>
       }
     },
     {
       header: "Status",
       cell: ({ row }) => (
         <Badge variant="secondary" className="text-muted-foreground px-1.5">
-          {row.original.status === "yes" ? (
-            <IconCircleCheckFilled className="fill-green-500 dark:fill-green-400" />
-          ) : row.original.status === "draft" ? (
-            <IconEyeOff />
-          ) : <IconTrash />}
-          {/* {row.original.status} */}
+          {row.original.status === "yes" ? <IconCircleCheckFilled className="fill-green-500 dark:fill-green-400" />
+            : row.original.status === "draft" ? <IconEyeOff /> : <IconTrash />}
         </Badge>
       ),
     },
     {
       header: "Publishing date",
-      cell: ({ row }) =>
-        <span className="text-sm text-primary">{formatDate(row.original.updated_at)}</span>,
-      meta: { className: "" }
+      cell: ({ row }) => <span className="text-sm text-primary">{formatDate(row.original.updated_at)}</span>,
     },
     {
       id: 'actions',
       cell: ({ row, table }) => {
         const router = useRouter();
+        const { error } = useAppToast();
         const articleId = row.original.id;
         async function handleDelete() {
           const ok = await confirmDelete();
@@ -204,144 +118,95 @@ function getColumns(categories: z.infer<typeof schemaCategory>[], openTableCellV
             }
           }
         }
-
-
         return (
-          <>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
-                  size="icon"
-                >
-                  <IconDotsVertical />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36">
-                <DropdownMenuItem onClick={() => router.push(`/news/edit/${articleId}`)}>
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem>Favorite</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={handleDelete}
-                >
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-          </>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="data-[state=open]:bg-muted text-muted-foreground flex size-8" size="icon">
+                <IconDotsVertical /><span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem onClick={() => router.push(`/news/edit/${articleId}`)}>Edit</DropdownMenuItem>
+              <DropdownMenuItem>Favorite</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={handleDelete}>Delete</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       },
     }
   ]
 }
 
+type Props = {
+  data: z.infer<typeof schema>[];
+  categories: z.infer<typeof schemaCategory>[];
+  serverPage: number;
+  pageCount?: number;
+  totalItems?: number;
+  pageSize: number;
+  isLoading?: boolean;
+  onPageChange: (nextPage: number) => void;
+  onPageSizeChange: (nextSize: number) => void;
+};
 
 export function DataArticles({
-  data: initialData,
-  categories: initialCategories
-}: {
-  data: z.infer<typeof schema>[]
-  categories: z.infer<typeof schemaCategory>[]
-}) {
+  data, categories: initialCategories,
+  serverPage, pageCount, isLoading, totalItems, pageSize,
+  onPageChange, onPageSizeChange
+}: Props) {
+  const { success } = useAppToast();
 
-  const [data, setData] = React.useState(() => initialData)
-  const [categories, setCategories] = React.useState(() => initialCategories)
+  // Không giữ items tích lũy nữa — data luôn là trang hiện tại
+  const [categories, setCategories] = React.useState(() => initialCategories);
+  React.useEffect(() => setCategories(initialCategories), [initialCategories]);
+
+  // Table pagination state được ĐIỀU KHIỂN bởi serverPage/pageCount (controlled)
+  const pagination = React.useMemo(() => ({
+    pageIndex: Math.max(0, serverPage - 1),
+    pageSize,                                  // 👈 hiển thị đúng per-page hiện tại
+  }), [serverPage, pageSize]);
 
   const openTableCellViewer = React.useCallback(
-    (item: z.infer<typeof schema>) => {
-      return openModal(TableCellViewer, { article: item, categories, mode: 'news' });
-    },
+    (item: z.infer<typeof schema>) => openModal(TableCellViewer, { article: item, categories, mode: 'news' }),
     [categories]
   );
 
-  React.useEffect(() => {
-    setData(initialData)
-    setCategories(initialCategories)
-  }, [initialData, initialCategories])
-
-  const { success, error } = useAppToast();
-
-  const [rowSelection, setRowSelection] = React.useState({})
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({})
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  )
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [pagination, setPagination] = React.useState({
-    pageIndex: 0,
-    pageSize: 10,
-  })
-
-  const onDelete = React.useCallback((id: number) => {
-    setData(prev => {
-      const next = prev.filter(x => x.id !== id)
-
-      // Cập nhật pageIndex an toàn theo kích thước mới
-      setPagination(p => {
-        const total = next.length
-        const pageCount = Math.max(1, Math.ceil(total / p.pageSize))
-        // nếu trang hiện tại vượt quá page cuối -> kéo về trang cuối
-        const newIndex = Math.min(p.pageIndex, pageCount - 1)
-        return { ...p, pageIndex: newIndex }
-      })
-
-      return next
-    })
-    success('Đã xoá bài viết');
-
-  }, [])
-
   const table = useReactTable({
-    data,
+    data, // chỉ dữ liệu của TRANG HIỆN TẠI
     columns: React.useMemo(() => getColumns(categories, openTableCellViewer), [categories, openTableCellViewer]),
-    state: {
-      sorting,
-      columnVisibility,
-      rowSelection,
-      columnFilters,
-      pagination,
+    state: { pagination },
+    manualPagination: true,                       // 👈 bật phân trang server
+    pageCount: pageCount ?? -1,                  // -1 nếu chưa biết total
+    onPaginationChange: (updater) => {
+      // TanStack gửi updater; ta đọc next.pageIndex và bắn onPageChange
+      const next = typeof updater === 'function' ? updater(pagination) : updater;
+      const nextPage = (next.pageIndex ?? pagination.pageIndex) + 1; // 1-based
+      if (nextPage !== serverPage) onPageChange(nextPage);
+      // PageSize đổi thì set local (và bạn có thể truyền lên cha nếu muốn đồng bộ limit)
+      if (next.pageSize && next.pageSize !== pageSize) setPageSize(next.pageSize);
     },
-    autoResetPageIndex: false,
-
-    getRowId: (row) => row.id.toString(),
-    enableRowSelection: true,
-    onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
-    meta: { onDelete },
-  })
+    meta: {
+      onDelete: (id: number) => {
+        // optional: xoá tại chỗ nếu bạn muốn; thông thường xoá xong nên refetch trang hiện tại ở cha
+        success('Đã xoá bài viết');
+      }
+    },
+  });
 
   return (
-    <Tabs
-      defaultValue="all"
-      className="flex w-full flex-1 min-h-0 flex-col gap-4"
-    >
+    <Tabs defaultValue="all" className="flex w-full flex-1 min-h-0 flex-col gap-4">
       <div className="flex items-center justify-between px-4 lg:px-6">
         <TabsList className="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex">
-          <TabsTrigger value="all">
-            All <span className="secondary">{data.length}</span>
-          </TabsTrigger>
-          <TabsTrigger value="favorite">
-            Favorite <Badge variant="secondary">3</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="top-view">
-            Top Views <Badge variant="secondary">2</Badge>
-          </TabsTrigger>
+          <TabsTrigger value="all">All <span className="secondary">{totalItems ?? data.length}</span></TabsTrigger>
+          <TabsTrigger value="favorite">Favorite <Badge variant="secondary">3</Badge></TabsTrigger>
+          <TabsTrigger value="top-view">Top Views <Badge variant="secondary">2</Badge></TabsTrigger>
         </TabsList>
         <div className="flex items-center gap-2">
           <Input
@@ -349,7 +214,8 @@ export function DataArticles({
             value={(table.getColumn("title")?.getFilterValue() as string) ?? ""}
             onChange={(e) => {
               table.getColumn("title")?.setFilterValue(e.target.value);
-              table.setPageIndex(0);
+              // khi search có thể muốn về trang 1:
+              onPageChange(1);
             }}
             className="h-8 w-[200px] lg:w-[250px]"
           />
@@ -375,13 +241,10 @@ export function DataArticles({
                   <DropdownMenuCheckboxItem
                     key={cat.id}
                     checked={!!isActive}
-                    // chọn 1 category sẽ set filter về đúng tên category
                     onCheckedChange={(checked) => {
-                      if (checked) {
-                        table.getColumn('category_id')?.setFilterValue(cat.name)
-                      } else {
-                        table.getColumn('category_id')?.setFilterValue(undefined)
-                      }
+                      if (checked) table.getColumn('category_id')?.setFilterValue(cat.name)
+                      else table.getColumn('category_id')?.setFilterValue(undefined)
+                      onPageChange(1) // filter thì về trang 1
                     }}
                     className="capitalize"
                   >
@@ -391,35 +254,27 @@ export function DataArticles({
               })}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm">
-            <IconPlus />
-            <Link href="/news/create" >
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/news/create">
+              <IconPlus />
               <span className="hidden lg:inline">Create News</span>
             </Link>
           </Button>
         </div>
       </div>
-      <TabsContent value="all"
-        className="flex flex-1 min-h-0 flex-col gap-4 px-4 lg:px-6"
-      >
+
+      <TabsContent value="all" className="flex flex-1 min-h-0 flex-col gap-4 px-4 lg:px-6">
         <div className="flex-1 min-h-0 overflow-auto">
           <div className="overflow-hidden rounded-sm border">
             <Table>
               <TableHeader className="bg-muted sticky top-0 z-10">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow className='h-12' key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead key={header.id} colSpan={header.colSpan}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                        </TableHead>
-                      )
-                    })}
+                {table.getHeaderGroups().map((hg) => (
+                  <TableRow className='h-12' key={hg.id}>
+                    {hg.headers.map((h) => (
+                      <TableHead key={h.id} colSpan={h.colSpan}>
+                        {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                      </TableHead>
+                    ))}
                   </TableRow>
                 ))}
               </TableHeader>
@@ -428,8 +283,7 @@ export function DataArticles({
                   table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}
-                          className={cell.column.columnDef.meta?.className}>
+                        <TableCell key={cell.id} className={cell.column.columnDef.meta?.className}>
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       ))}
@@ -438,7 +292,7 @@ export function DataArticles({
                 ) : (
                   <TableRow>
                     <TableCell colSpan={table.getAllColumns().length} className="h-24 text-center">
-                      No results.
+                      {isLoading ? 'Đang tải...' : 'No results.'}
                     </TableCell>
                   </TableRow>
                 )}
@@ -446,46 +300,49 @@ export function DataArticles({
             </Table>
           </div>
         </div>
+
+        {/* FOOTER: phân trang server điều khiển bởi props */}
         <div className="mt-auto flex items-center justify-between border-t bg-background px-4 py-2">
           <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-            {table.getFilteredSelectedRowModel().rows.length} of{" "}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
+            {/* selection counter */}
           </div>
+
           <div className="flex w-full items-center gap-8 lg:w-fit">
+            {/* page size (áp vào serverPageSize nếu cần) */}
             <div className="hidden items-center gap-2 lg:flex">
-              <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                per page
-              </Label>
+              <Label htmlFor="rows-per-page" className="text-sm font-medium">per page</Label>
               <Select
-                value={`${table.getState().pagination.pageSize}`}
+                value={`${pageSize}`}
                 onValueChange={(value) => {
-                  table.setPageSize(Number(value))
+                  const v = Number(value);
+                  if (!Number.isFinite(v) || v <= 0) return;
+                  onPageSizeChange(v);
+                  onPageChange(1);
                 }}
               >
                 <SelectTrigger size="sm" className="w-20" id="rows-per-page">
-                  <SelectValue
-                    placeholder={table.getState().pagination.pageSize}
-                  />
+                  <SelectValue placeholder={pageSize} />
                 </SelectTrigger>
                 <SelectContent side="top">
-                  {[10, 20, 30, 40, 50].map((pageSize) => (
-                    <SelectItem key={pageSize} value={`${pageSize}`}>
-                      {pageSize}
+                  {[10, 20, 30, 40, 50].map((ps) => (
+                    <SelectItem key={ps} value={`${ps}`}>
+                      {ps}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
             <div className="flex w-fit items-center justify-center text-sm font-medium">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
+              Page {serverPage}{pageCount ? <> of {pageCount}</> : null}
             </div>
+
             <div className="ml-auto flex items-center gap-2 lg:ml-0">
               <Button
                 variant="outline"
                 className="hidden h-8 w-8 p-0 lg:flex"
-                onClick={() => table.setPageIndex(0)}
-                disabled={!table.getCanPreviousPage()}
+                onClick={() => onPageChange(1)}
+                disabled={serverPage <= 1 || isLoading}
               >
                 <span className="sr-only">first page</span>
                 <IconChevronsLeft />
@@ -494,8 +351,8 @@ export function DataArticles({
                 variant="outline"
                 className="size-8"
                 size="icon"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
+                onClick={() => onPageChange(serverPage - 1)}
+                disabled={serverPage <= 1 || isLoading}
               >
                 <span className="sr-only">previous page</span>
                 <IconChevronLeft />
@@ -504,8 +361,8 @@ export function DataArticles({
                 variant="outline"
                 className="size-8"
                 size="icon"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
+                onClick={() => onPageChange(serverPage + 1)}
+                disabled={(pageCount ? serverPage >= pageCount : false) || isLoading}
               >
                 <span className="sr-only">next page</span>
                 <IconChevronRight />
@@ -514,8 +371,8 @@ export function DataArticles({
                 variant="outline"
                 className="hidden size-8 lg:flex"
                 size="icon"
-                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                disabled={!table.getCanNextPage()}
+                onClick={() => pageCount && onPageChange(pageCount)}
+                disabled={(pageCount ? serverPage >= pageCount : true) || isLoading}
               >
                 <span className="sr-only">last page</span>
                 <IconChevronsRight />
@@ -524,19 +381,14 @@ export function DataArticles({
           </div>
         </div>
       </TabsContent>
-      <TabsContent value="favorite"
-        className="flex flex-col px-4 lg:px-6"
-      >
+
+      {/* tabs khác giữ nguyên nếu cần */}
+      <TabsContent value="favorite" className="flex flex-col px-4 lg:px-6">
         <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
       </TabsContent>
-      <TabsContent value="top-view"
-        className="flex flex-col px-4 lg:px-6">
+      <TabsContent value="top-view" className="flex flex-col px-4 lg:px-6">
         <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
       </TabsContent>
     </Tabs>
   )
 }
-
-
-
-

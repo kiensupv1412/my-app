@@ -17,9 +17,11 @@ import {
     useMediaList,
 } from '@/lib/media.api';
 import { IconChevronLeft, IconPlus } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
 import * as React from 'react';
 
 export default function MediaPage() {
+    const router = useRouter();
     const { success } = useAppToast();
     const [currentFolderId, setCurrentFolderId] = React.useState<number | null>(null);
     const [page, setPage] = React.useState(1);
@@ -27,10 +29,8 @@ export default function MediaPage() {
 
     const { folders, isLoading: foldersLoading, refetch: refetchFolders } = useFolders();
     const { media, total, isLoading: mediaLoading, refetch: refetchMedia } = useMediaList({ page, pageSize, folder_id: currentFolderId });
-    console.log("🚀 ~ MediaPage ~ media:", media)
     const currentFolder = React.useMemo(() => folders.find((f) => f.id === currentFolderId) || null, [folders, currentFolderId],
     );
-    // ⬇️ thêm state cho phân trang
     const [loading, setLoading] = React.useState<boolean>(false);
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -170,16 +170,19 @@ export default function MediaPage() {
                     </div>
                 </div>
                 <UploadMediaDialog
-                    media={media}
                     currentFolderId={currentFolderId}
-                    onUploaded={() => setPage(1)}
+                    onUploaded={
+                        () => {
+                            setPage(1)
+                            refetchMedia()
+                        }}
                 >
                     <Button variant="outline" size="sm">
                         <IconPlus />
                         <span className="hidden lg:inline">Upload Image</span>
                     </Button>
                 </UploadMediaDialog>
-            </div>
+            </div >
         );
     }
 
@@ -209,7 +212,14 @@ export default function MediaPage() {
                                 </div>
                             </button>
                             {folders.map((f) => (
-                                <FolderCard key={f.id} f={f} onOpen={setCurrentFolderId} />
+                                <FolderCard
+                                    key={f.id}
+                                    f={f}
+                                    onOpen={(id) => {
+                                        setPage(1);
+                                        router.push(`/media/${id}`);
+                                    }}
+                                />
                             ))}
                         </>
                     )}

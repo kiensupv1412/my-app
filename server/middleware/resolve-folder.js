@@ -1,5 +1,5 @@
 // server/middleware/resolve-folder.js
-const Folder = require('../models/folder.model'); // Model Sequelize
+const { Folder } = require('../models/folder.model'); // Model Sequelize
 
 async function resolveFolderById(req, _res, next) {
     try {

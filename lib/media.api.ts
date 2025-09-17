@@ -302,24 +302,24 @@ export function useFolders(config?: SWRConfiguration) {
  * Lấy danh sách media theo trang + folder.
  * - keepPreviousData: giữ data cũ khi đổi page để UI không giật
  */
+// lib/media.api.ts
 export function useMediaList(
   params: { page: number; pageSize: number; folder_id?: number | null },
   config?: SWRConfiguration
 ) {
-  // 👇 tạo key dạng string, nhét rõ folder_id
   const qFolder =
     params.folder_id === null
       ? 'null'
       : params.folder_id !== undefined
         ? String(params.folder_id)
-        : 'null'; // mặc định root
+        : 'null'; // ✅ mặc định root
 
   const key = `/media?page=${params.page}&pageSize=${params.pageSize}&folder_id=${qFolder}`;
 
   const { data, error, isLoading, mutate } = useSWR(
     key,
     () => apiListMedia({ ...params, folder_id: qFolder === 'null' ? null : Number(qFolder) }),
-    { revalidateOnFocus: false, ...config }
+    { revalidateOnFocus: false, keepPreviousData: true, ...config }
   );
 
   return {
@@ -333,6 +333,7 @@ export function useMediaList(
     mutate,
   };
 }
+
 // ---------------------------
 // Optimistic helpers
 // ---------------------------

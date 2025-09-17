@@ -53,19 +53,16 @@ const ALLOWED = [
 ];
 
 type Props = {
-    setItems: React.Dispatch<React.SetStateAction<MediaItem[]>>;
-    /** Upload vào thư mục hiện tại (null = root) */
     currentFolderId?: number | null;
-    /** Tùy chọn: nếu bạn upload theo slug */
     currentFolderSlug?: string | null;
-    /** Trigger tuỳ biến: dùng trong FolderHeader để mở dialog */
+    onUploaded?: (uploaded: MediaItem[]) => void;
     children?: React.ReactNode;
 };
 
 export function UploadMediaDialog({
-    setItems,
     currentFolderId = null,
     currentFolderSlug = null,
+    onUploaded,
     children,
 }: Props) {
     const [open, setOpen] = React.useState(false);
@@ -108,48 +105,30 @@ export function UploadMediaDialog({
 
     async function onUpload() {
         if (!files.length) return;
-
         const valid = files.filter((f) => !f.error);
-        if (!valid.length) {
-            error('Không có file hợp lệ', 'Vui lòng chọn lại.');
-            return;
-        }
+        if (!valid.length) { error('Không có file hợp lệ'); return; }
 
         setUploading(true);
         try {
             const opts: { folder_id?: number | null; folder_slug?: string | null } = {};
-            if (currentFolderId !== undefined && currentFolderId !== null) {
-                opts.folder_id = currentFolderId;
-            }
-            if (currentFolderSlug && currentFolderSlug.length) {
-                opts.folder_slug = currentFolderSlug;
-            }
+            if (currentFolderId !== undefined && currentFolderId !== null) opts.folder_id = currentFolderId;
+            if (currentFolderSlug && currentFolderSlug.length) opts.folder_slug = currentFolderSlug;
 
-            const uploaded = await apiUpload(
-                valid.map((v) => v.file),
-                opts
-            );
+            const uploaded = await apiUpload(valid.map(v => v.file), opts);
 
-            if (uploaded.length) {
-                // prepend vào grid hiện tại
-                setItems((prev) => uploaded.concat(prev));
-            }
+            // ✅ Thông báo cho parent tự refetch/mutate
+            if (uploaded.length) onUploaded?.(uploaded);
 
             success('Upload thành công', `${valid.length} file đã được tải lên.`);
-            // đóng và reset
             setOpen(false);
-            // thu hồi URL trước khi clear
             files.forEach((f) => f.url && URL.revokeObjectURL(f.url));
             setFiles([]);
         } catch (e: any) {
-            const msg = e?.message || 'Upload failed';
-            console.error('[UPLOAD][EXCEPTION]', e);
-            error('Upload thất bại', msg);
+            error('Upload thất bại', e?.message || 'Upload failed');
         } finally {
             setUploading(false);
         }
     }
-
     function onWheelToHorizontal(e: React.WheelEvent<HTMLDivElement>) {
         const el = e.currentTarget;
         if (el.scrollWidth > el.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {

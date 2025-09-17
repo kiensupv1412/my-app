@@ -1,4 +1,6 @@
-// hooks/useArticles.ts
+/*
+ * path: hooks/useArticles.ts
+ */
 import useSWR, { mutate } from 'swr';
 import { fetcher } from '@/lib/fetcher';
 

@@ -39,59 +39,44 @@ import { TableKit } from '@/components/editor/plugins/table-kit';
 import { TocKit } from '@/components/editor/plugins/toc-kit';
 import { ToggleKit } from '@/components/editor/plugins/toggle-kit';
 
-export const EditorKit = [
-  ...CopilotKit,
-  // ...AIKit,
+export const EditorDescKit = [
+    // Elements
+    ...BasicBlocksKit,
+    ...CodeBlockKit,
+    ...TableKit,
+    ...ToggleKit,
+    ...TocKit,
+    ...MediaKit,
+    ...CalloutKit,
+    ...ColumnKit,
+    ...MathKit,
+    ...DateKit,
+    ...LinkKit,
+    ...MentionKit,
 
-  // Elements
-  ...BasicBlocksKit,
-  ...CodeBlockKit,
-  ...TableKit,
-  ...ToggleKit,
-  ...TocKit,
-  ...MediaKit,
-  ...CalloutKit,
-  ...ColumnKit,
-  ...MathKit,
-  ...DateKit,
-  ...LinkKit,
-  ...MentionKit,
+    ...BasicMarksKit,
+    ...FontKit,
 
-  // Marks
-  ...BasicMarksKit,
-  ...FontKit,
+    // Block Style
+    // ...ListClassicKit,
+    ...ListKit,
+    ...AlignKit,
+    ...LineHeightKit,
 
-  // Block Style
-  // ...ListClassicKit,
-  ...ListKit,
-  ...AlignKit,
-  ...LineHeightKit,
+    // Collaboration
+    ...CommentKit,
 
-  // Collaboration
-  ...DiscussionKit,
-  ...CommentKit,
-  ...SuggestionKit,
-
-  // Editing
-  ...SlashKit,
-  ...AutoformatKit,
-  ...CursorOverlayKit,
-  ...BlockMenuKit,
-  // ...DndKit,
-  ...EmojiKit,
-  ...ExitBreakKit,
-  TrailingBlockPlugin,
-
-  // Parsers
-  ...DocxKit,
-  ...MarkdownKit,
-
-  // UI
-  ...BlockPlaceholderKit,
-  ...FixedToolbarKit,
-  ...FloatingToolbarKit,
+    // Editing
+    ...SlashKit,
+    ...AutoformatKit,
+    ...CursorOverlayKit,
+    ...BlockMenuKit,
+    ...EmojiKit,
+    ...ExitBreakKit,
+    TrailingBlockPlugin,
+    ...FloatingToolbarKit
 ];
 
-export type MyEditor = TPlateEditor<Value, (typeof EditorKit)[number]>;
+export type MyEditor = TPlateEditor<Value, (typeof EditorDescKit)[number]>;
 
 export const useEditor = () => useEditorRef<MyEditor>();

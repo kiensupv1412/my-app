@@ -1,11 +1,12 @@
 /*
- * path: app/dashboard/page.tsx
+ * path: app/news/page.tsx
  */
 
 'use client';
 
 import { DataArticles } from "@/components/dashboard/data-articles";
-import { useArticles, useCategories, createArticleOptimistic, updateArticleOptimistic } from '@/hooks/useArticles';
+import { useArticles, useCategories } from "@/hooks/useArticles";
+import React from "react";
 
 
 export default function Page() {

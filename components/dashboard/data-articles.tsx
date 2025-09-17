@@ -90,10 +90,11 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { confirmDelete } from '@/components/modals/confirm-delete-service';
-import { TableCellViewer } from './TableCellViewer'
 import { MediaThumb } from '../media/media-thumb'
 import { AspectRatio } from '../ui/aspect-ratio'
 import { useEditor } from '../editor/editor-kit'
+import { ViewerContext } from '../news/NewsEditorPage'
+import { openModal } from '../../lib/useModal';
 
 
 function formatDate(value: string | Date, opts: Intl.DateTimeFormatOptions = {}) {
@@ -123,7 +124,11 @@ export const schemaCategory = z.array(
   })
 );
 
-function getColumns(categories: z.infer<typeof schemaCategory>[]): ColumnDef<z.infer<typeof schema>>[] {
+
+
+
+function getColumns(categories: z.infer<typeof schemaCategory>[], openTableCellViewer: (item: z.infer<typeof schema>) => Promise<void>): ColumnDef<z.infer<typeof schema>>[] {
+
   return [
     {
       header: "id",
@@ -146,9 +151,9 @@ function getColumns(categories: z.infer<typeof schemaCategory>[]): ColumnDef<z.i
     {
       accessorKey: "title",
       header: "Title",
-      cell: ({ row }) => {
-        return <TableCellViewer mode={"dashboard"} item={row.original} categories={categories} />
-      },
+      cell: ({ row }) =>
+        <Button variant="link" onClick={() => openTableCellViewer(row.original)}>{row.original.title}</Button>
+      ,
       enableHiding: false,
       meta: { className: "whitespace-normal" }
 
@@ -248,6 +253,13 @@ export function DataArticles({
   const [data, setData] = React.useState(() => initialData)
   const [categories, setCategories] = React.useState(() => initialCategories)
 
+  const openTableCellViewer = React.useCallback(
+    (item: z.infer<typeof schema>) => {
+      return openModal('viewer', { item, categories, mode: 'dashboard' });
+    },
+    [categories]
+  );
+
   React.useEffect(() => {
     setData(initialData)
     setCategories(initialCategories)
@@ -288,7 +300,7 @@ export function DataArticles({
 
   const table = useReactTable({
     data,
-    columns: React.useMemo(() => getColumns(categories), [categories]),
+    columns: React.useMemo(() => getColumns(categories, openTableCellViewer), [categories, openTableCellViewer]),
     state: {
       sorting,
       columnVisibility,
@@ -296,7 +308,7 @@ export function DataArticles({
       columnFilters,
       pagination,
     },
-    autoResetPageIndex: false,   // 👈 quan trọng
+    autoResetPageIndex: false,
 
     getRowId: (row) => row.id.toString(),
     enableRowSelection: true,

@@ -62,9 +62,6 @@ import { handlePreview } from '@/lib/editorManeger';
 
 export function FixedToolbarButtons() {
   const editor = useEditorRef();
-
-  const viewerCtx = useContext(ViewerContext);
-  const setViewerOpen = viewerCtx?.setViewerOpen;
   const readOnly = useEditorReadOnly();
 
   return (
@@ -184,7 +181,7 @@ export function FixedToolbarButtons() {
       {/* fix */}
       <ToolbarGroup>
         <ToolbarButton tooltip="show SidebarRight"
-          onClick={() => setViewerOpen(true)}
+        // onClick={ }
         >
           <Rss color="#e32400" />
         </ToolbarButton>
@@ -201,3 +198,4 @@ export function FixedToolbarButtons() {
     </div>
   );
 }
+

@@ -1,3 +1,7 @@
+/*
+ * path: app/news/create/page.tsx
+ */
+
 "use client";
 
 import NewsEditorPage from '@/components/news/NewsEditorPage';

@@ -80,31 +80,29 @@ function detectContentType(input: unknown): DetectResult {
 // Idempotent: chỉ setValue khi thực sự có nội dung mới
 export function handleEditor({
     mode,
-    editor,
+    contentEditor,
     defaultValue,
 }: {
     mode: 'create' | 'edit';
-    editor: any;
-    defaultValue?: unknown; // cho phép string | nodes | null
+    contentEditor: any;
+    defaultValue?: unknown;
 }) {
-    if (!editor) return;
+    if (!contentEditor) return;
 
     const detected = detectContentType(defaultValue);
 
     let nextValue: SlateNodes = [];
 
     if (mode === 'create') {
-        // để rỗng
         nextValue = [];
     } else {
-        // edit
         if (detected.kind === 'nodes') {
             nextValue = detected.value ?? [];
         } else if (detected.kind === 'html') {
             const el = document.createElement('div');
             el.innerHTML = detected.value;
             const element = el; // hoặc parseHtmlElement(el) nếu cần Element đã chuẩn hoá
-            const nodes = editor.api.html.deserialize({
+            const nodes = contentEditor.api.html.deserialize({
                 element,
                 collapseWhiteSpace: false,
                 defaultElementPlugin: ParagraphPlugin.withComponent(ParagraphElement),
@@ -115,8 +113,7 @@ export function handleEditor({
         }
     }
 
-    // tránh set lại y chang (gây lag)
-    const curr = editor.children as SlateNodes;
+    const curr = contentEditor.children as SlateNodes;
     const same =
         Array.isArray(curr) &&
         Array.isArray(nextValue) &&
@@ -124,6 +121,6 @@ export function handleEditor({
         JSON.stringify(curr) === JSON.stringify(nextValue);
 
     if (!same) {
-        editor.tf.setValue(nextValue);
+        contentEditor.tf.setValue(nextValue);
     }
 }

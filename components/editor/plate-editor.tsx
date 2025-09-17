@@ -1,9 +1,6 @@
 /*
  * path: components/editor/plate-editor.tsx
  */
-
-'use client';
-
 import * as React from 'react';
 
 import { createPlateEditor, Plate, useEditorRef, useEditorValue, usePlateEditor, usePlateState } from 'platejs/react';
@@ -16,7 +13,6 @@ import { serializeCleanHtml } from '@/lib/serializeCleanHtml';
 import { serializeHtml } from 'platejs';
 
 export function PlateEditor() {
-
   return (
     <Editor variant="demo" />
   );

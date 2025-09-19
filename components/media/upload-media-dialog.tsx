@@ -199,7 +199,7 @@ export function UploadMediaDialog({
                                                 alt={f.file.name}
                                                 className="h-28 w-full rounded object-cover"
                                                 onError={(e) => {
-                                                    (e.currentTarget as HTMLImageElement).src = '/placeholder.png';
+                                                    (e.currentTarget as HTMLImageElement).src = '/thumb-default.jpeg';
                                                 }}
                                             />
                                         ) : (

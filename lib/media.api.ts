@@ -1,28 +1,5 @@
 // path: /lib/media.api.ts
 
-/* ============
- * Types
- * ============ */
-export type MediaItem = {
-  id: number;
-  site?: number;
-  user_id?: number;
-  media_type?: string;
-  uuid?: string;
-  name: string;
-  file_name: string;
-  file_url: string;             // tuyệt đối sau normalize
-  file_size?: number | null;
-  mime: string;
-  alt?: string | null;
-  caption?: string | null;
-  thumbnail?: string | null;    // absolutize nếu là path tương đối
-  width?: number | null;
-  height?: number | null;
-  created_at?: any;
-  updated_at?: any;
-};
-
 export type FolderItem = {
   id: number;
   name: string;
@@ -271,6 +248,7 @@ export async function apiListMediaByFolder(folderId: number | null) {
   return apiListMedia({ folder_id: (folderId === null ? 'null' : folderId) })
 }
 
+import { MediaItem } from '@/types';
 // ===========================
 // SWR hooks + optimistic helpers
 // ===========================

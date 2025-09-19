@@ -146,12 +146,12 @@ export default function MediaFolderPage({ params }: { params: { id: string } }) 
                 <div className="flex items-center gap-2">
                     <label className="text-sm text-muted-foreground">Hiển thị</label>
                     <select
-                        className="h-8 rounded-md border bg-background px-2 text-sm"
+                        className="h-8 rounded-md border bg-background px-1 text-sm"
                         value={pageSize}
                         onChange={(e) => { setPage(1); setPageSize(Number(e.target.value)); }}
                     >
                         {[24, 48, 96, 150].map((n) => (
-                            <option key={n} value={n}>{n}/trang</option>
+                            <option key={n} value={n}>{n}</option>
                         ))}
                     </select>
 

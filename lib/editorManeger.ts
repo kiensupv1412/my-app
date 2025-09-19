@@ -80,14 +80,14 @@ function detectContentType(input: unknown): DetectResult {
 // Idempotent: chỉ setValue khi thực sự có nội dung mới
 export function handleEditor({
     mode,
-    contentEditor,
+    editor,
     defaultValue,
 }: {
     mode: 'create' | 'edit';
-    contentEditor: any;
+    editor: any;
     defaultValue?: unknown;
 }) {
-    if (!contentEditor) return;
+    if (!editor) return;
 
     const detected = detectContentType(defaultValue);
 
@@ -102,7 +102,7 @@ export function handleEditor({
             const el = document.createElement('div');
             el.innerHTML = detected.value;
             const element = el; // hoặc parseHtmlElement(el) nếu cần Element đã chuẩn hoá
-            const nodes = contentEditor.api.html.deserialize({
+            const nodes = editor.api.html.deserialize({
                 element,
                 collapseWhiteSpace: false,
                 defaultElementPlugin: ParagraphPlugin.withComponent(ParagraphElement),
@@ -112,15 +112,5 @@ export function handleEditor({
             nextValue = [];
         }
     }
-
-    const curr = contentEditor.children as SlateNodes;
-    const same =
-        Array.isArray(curr) &&
-        Array.isArray(nextValue) &&
-        curr.length === nextValue.length &&
-        JSON.stringify(curr) === JSON.stringify(nextValue);
-
-    if (!same) {
-        contentEditor.tf.setValue(nextValue);
-    }
+    editor.tf.setValue(nextValue);
 }

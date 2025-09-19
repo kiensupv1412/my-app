@@ -31,7 +31,6 @@ export function MediaThumb({
             placeholder="blur"
             blurDataURL={fallbackSrc}
             onError={() => setImgSrc(fallbackSrc)}
-            // optional: sizes để tránh layout shift
             sizes="(max-width: 768px) 100vw, 33vw"
         />
     )

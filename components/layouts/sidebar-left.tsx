@@ -76,7 +76,7 @@ const navigation = [
   },
 ]
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const pathname = usePathname()
   const { isMobile } = useSidebar()

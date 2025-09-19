@@ -5,7 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
-const { filePublicUrl } = require('../helpers/file');
 const Media = require('../models/media.model');
 let PUBLIC_DIR = null;
 
@@ -19,7 +18,6 @@ if (!PUBLIC_DIR) {
   PUBLIC_DIR = path.join(process.cwd(), 'public');
 }
 
-/* --------------------------- Helpers --------------------------- */
 function resolveSite(req) {
   let s;
   if (req.body && req.body.site !== undefined) s = Number(req.body.site);
@@ -57,7 +55,6 @@ function normalizePublicRelative(rel) {
   return s;
 }
 
-/* -------------------------- Controllers ------------------------ */
 async function uploadOne(req, res, next) {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });

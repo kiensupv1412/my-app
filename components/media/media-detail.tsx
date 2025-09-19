@@ -79,7 +79,7 @@ export function MediaDetail({ item, onDelete }: Props) {
                             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                             onError={(e) => {
                                 const el = e.currentTarget as HTMLImageElement;
-                                el.src = '/placeholder.png';
+                                el.src = '/thumb-default.jpeg';
                             }}
                         />
                     </div>

@@ -2,7 +2,7 @@
  * path: server/models/media.model.js
  */
 const { DataTypes } = require('sequelize');
-const sequelize = require("./db");  
+const sequelize = require("./db");
 
 const Media = sequelize.define('Media', {
   id: {
@@ -38,8 +38,8 @@ const Media = sequelize.define('Media', {
   updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
 }, {
   tableName: 'media_storage',
-  timestamps: false,       // vì bạn đang dùng created_at, updated_at tự quản lý
-  underscored: true,       // cột snake_case
+  timestamps: false,
+  underscored: true,
 });
 
 module.exports = Media;

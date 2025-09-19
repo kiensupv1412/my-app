@@ -14,6 +14,7 @@ import {
   Dock,
   ExternalLink,
   HighlighterIcon,
+  ImageUp,
   ItalicIcon,
   Newspaper,
   PaintBucketIcon,
@@ -54,19 +55,15 @@ import { TableToolbarButton } from './table-toolbar-button';
 import { ToggleToolbarButton } from './toggle-toolbar-button';
 import { ToolbarButton, ToolbarGroup } from './toolbar';
 import { TurnIntoToolbarButton } from './turn-into-toolbar-button';
-import { useContext } from 'react';
-import { BaseEditorKit } from '../editor-base-kit';
-import { serializeCleanHtml } from '@/lib/serializeCleanHtml';
 import { handlePreview } from '@/lib/editorManeger';
-import { useNewsEditor } from '@/components/providers/news-editor-provider';
-import { openModal } from '@/hooks/useMedia';
+import { openModal } from '@/hooks/useModal';
 import { TableCellViewer } from '@/components/modals/contents/TableCellViewer';
+import PickThumb from '@/components/modals/contents/pickThumb';
 
 export function FixedToolbarButtons() {
   const descEditor = useEditorRef('description');
   const contentEditor = useEditorRef('content');
   const readOnly = useEditorReadOnly();
-  const { article, categories, mode } = useNewsEditor();
 
   return (
     <div className="flex w-full flex-row flex-wrap">
@@ -180,24 +177,7 @@ export function FixedToolbarButtons() {
       <ToolbarGroup>
         <ModeToolbarButton />
       </ToolbarGroup>
-
       {/* <div className="grow" /> */}
-      {/* fix */}
-      <ToolbarGroup>
-        <ToolbarButton tooltip="show SidebarRight"
-          onClick={() => openModal(TableCellViewer, { article, categories, mode, descEditor, contentEditor })}
-        >
-          <Rss color="#e32400" />
-        </ToolbarButton>
-      </ToolbarGroup>
-
-      <ToolbarGroup>
-        <ToolbarButton tooltip="preview html"
-          onClick={() => handlePreview(contentEditor)}
-        >
-          <Newspaper color="#e32400" />
-        </ToolbarButton>
-      </ToolbarGroup>
     </div>
   );
 }

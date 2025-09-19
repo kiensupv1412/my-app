@@ -1,6 +1,7 @@
 /*
-* path: hooks/useMedia.ts
-*/
+ * path: hooks/useModal.ts
+ */
+
 'use client';
 
 import React from 'react';
@@ -35,7 +36,6 @@ export function useModalStore() {
     );
 }
 
-// ✅ mở modal bằng Component + props
 export function openModal<P>(
     Comp: React.ComponentType<P>,
     props: Omit<P, 'onResolve' | 'onClose'>
@@ -46,7 +46,9 @@ export function openModal<P>(
 }
 
 export function resolveModal(v?: unknown) {
-    state.resolve?.(v);
+    const resolver = state.resolve;
+    setState({ open: false, payload: null, resolve: undefined });
+    resolver?.(v);
 }
 
 export function closeModal(v?: unknown) {

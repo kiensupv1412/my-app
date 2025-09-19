@@ -6,6 +6,7 @@ const fs = require('fs');
 const Article = require('../models/article.model');
 const { getMediaById } = require('../models/media.model');
 const Category = require('../models/category.model');
+const Media = require('../models/media.model');
 
 // Lấy tất cả articles
 async function getArticles(req, res, next) {
@@ -21,8 +22,11 @@ async function getArticles(req, res, next) {
       include: [
         {
           model: Category,
-          as: 'category',
-          attributes: ['id', 'name'],
+          as: 'category'
+        },
+        {
+          model: Media,
+          as: 'thumb',
         },
       ],
     });
@@ -59,7 +63,18 @@ async function getArticle(req, res, next) {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' });
 
-    const row = await Article.findByPk(id);
+    const row = await Article.findByPk(id, {
+      include: [
+        {
+          model: Category,
+          as: 'category'
+        },
+        {
+          model: Media,
+          as: 'thumb',
+        },
+      ],
+    });
     if (!row) return res.status(404).json({ error: 'Not found' });
 
     res.json(row);

@@ -6,69 +6,47 @@ import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import {
     Dialog, DialogTitle, DialogContent, DialogDescription,
-    DialogFooter, DialogHeader
+    DialogFooter, DialogHeader,
+    DialogTrigger
 } from '@/components/ui/dialog';
-import { apiListMedia, type MediaItem as ServerMediaItem } from '@/lib/media.api';
+import { apiListMedia } from '@/lib/media.api';
 import {
     Select, SelectTrigger, SelectValue, SelectContent, SelectItem
 } from "@/components/ui/select";
 import {
     IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight
 } from "@tabler/icons-react";
-
-type PickResult = {
-    id: number;
-    url: string;             // file_url tuyệt đối
-    thumb?: string | null;   // thumbnail tuyệt đối (nếu có)
-    alt?: string | null;
-};
+import { MediaItem } from '@/types';
 
 type Props = {
-    open?: boolean;
-    onResolve: (v: PickResult | null) => void;
-    onClose: () => void;
-    initial?: PickResult | null;
-    maxItems?: number;       // không dùng nữa (đã có pageSize), vẫn giữ để không breaking
-    folderId?: number | null;
+    thumb: MediaItem | undefined;
+    onConfirmAction: (media: MediaItem | undefined) => void;
 };
 
-function mapRow(m: ServerMediaItem): PickResult {
-    return {
-        id: m.id,
-        url: m.file_url,
-        thumb: m.thumbnail ?? null,
-        alt: m.alt ?? null
-    };
-}
+export default function PickThumb({ thumb, onConfirmAction }: Props) {
+    const [open, setOpen] = React.useState(false);
+    const [selected, setSelected] = React.useState<MediaItem | undefined>(thumb);
 
-export default function PickThumb({
-    open,
-    onResolve,
-    onClose,
-    initial = null,
-    folderId = null,
-}: Props) {
-    const [selected, setSelected] = React.useState<PickResult | null>(initial);
+    React.useEffect(() => {
+        setSelected(thumb);
+    }, [thumb?.id]);
+
+    const commit = React.useCallback(() => {
+        if (selected?.id == thumb?.id) return;
+        onConfirmAction?.(selected);
+        setOpen(false);
+    }, [onConfirmAction, selected]);
 
     // server pagination
     const [page, setPage] = React.useState<number>(1);
     const [pageSize, setPageSize] = React.useState<number>(48); // mặc định 24/ trang
 
-    React.useEffect(() => {
-        setSelected(initial ?? null);
-    }, [initial]);
-
-    // Mỗi lần đổi folder → quay về trang 1
-    React.useEffect(() => {
-        setPage(1);
-    }, [folderId]);
-
     const { data, isLoading, error, mutate } = useSWR(
-        ['media-paged', page, pageSize, folderId] as const,
+        ['media-paged', page, pageSize] as const,
         async () => {
-            const res = await apiListMedia({ page, pageSize, q: '', folder_id: folderId });
+            const res = await apiListMedia({ page, pageSize, q: '' });
             return {
-                items: res.rows.map(mapRow),
+                items: res.rows,
                 total: res.total,
                 page: res.page,
                 pageSize: res.pageSize,
@@ -83,7 +61,6 @@ export default function PickThumb({
 
     const cx = (...cls: (string | false | null | undefined)[]) => cls.filter(Boolean).join(' ');
 
-    // handlers
     const goFirst = () => setPage(1);
     const goPrev = () => setPage(p => Math.max(1, p - 1));
     const goNext = () => setPage(p => Math.min(totalPages, p + 1));
@@ -92,11 +69,20 @@ export default function PickThumb({
     const onChangePageSize = (val: number) => {
         if (!Number.isFinite(val) || val <= 0) return;
         setPageSize(val);
-        setPage(1); // đổi pageSize → quay về trang 1
+        setPage(1);
     };
 
     return (
-        <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="link" className="px-0 text-left w-full h-full">
+                    <img
+                        src={selected?.file_url}
+                        alt={selected?.alt ?? 'thumbnail'}
+                        className="block w-full h-auto"
+                    />
+                </Button>
+            </DialogTrigger>
             <DialogContent
                 className="w-[90vw] max-w-[90vw] sm:max-w-[90vw] h-[80vh] max-h-[80vh] p-0 overflow-hidden flex flex-col">
                 <DialogHeader className="px-4 py-3 shrink-0">
@@ -126,26 +112,27 @@ export default function PickThumb({
                             </div>
                         )}
 
-                        {items.map((m) => {
-                            const isSel = selected?.id === m.id;
-                            const src = m.thumb || m.url;
+                        {items.map((media) => {
+                            const isSel = selected?.id === media.id;
+                            const src = media.file_url;
                             return (
                                 <button
-                                    key={m.id}
+                                    key={media.id}
                                     type="button"
-                                    title={m.alt ?? m.url}
-                                    onClick={() => setSelected(m)}
-                                    onDoubleClick={() => onResolve(m)}
+                                    title={media.alt ?? ""}
+                                    onClick={() => {
+                                        setSelected(media);
+                                    }}
+                                    onDoubleClick={commit}
                                     className={cx(
                                         'relative h-24 w-full overflow-hidden rounded-md border',
                                         'transition hover:ring-2 hover:ring-primary',
                                         isSel && 'ring-2 ring-primary border-primary'
                                     )}
                                 >
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                         src={src}
-                                        alt={m.alt ?? 'thumb'}
+                                        alt={media.alt ?? 'thumb'}
                                         className="h-full w-full object-cover"
                                         loading="lazy"
                                     />
@@ -160,7 +147,6 @@ export default function PickThumb({
                     </div>
                 </div>
 
-                {/* Footer: page size + pagination */}
                 {/* Footer: page size + pagination + actions */}
                 <DialogFooter className="px-4 py-3 border-t shrink-0 bg-background flex items-center justify-between gap-3">
                     {/* Page size + info */}
@@ -208,10 +194,8 @@ export default function PickThumb({
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
-                        <Button type="button" variant="secondary" onClick={onClose}>Hủy</Button>
-                        <Button type="button" onClick={() => onResolve(selected ?? null)} disabled={!selected}>
-                            Chọn
-                        </Button>
+                        <Button type="button" variant="secondary"  >Hủy</Button>
+                        <Button type="button" onClick={commit} disabled={selected?.id == thumb?.id}>Chọn</Button>
                     </div>
                 </DialogFooter>
             </DialogContent>

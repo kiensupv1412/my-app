@@ -36,6 +36,8 @@ app.use(express.static(path.join(process.cwd(), 'public'), { maxAge: '7d', immut
   try {
     await sequelize.authenticate();
     console.log('✅ Kết nối DB thành công!');
+    // đồng bộ model nếu cần
+    // await sequelize.sync({ alter: true });
   } catch (e) {
     console.error('❌ Kết nối DB thất bại:', e.message);
   }

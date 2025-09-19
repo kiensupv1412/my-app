@@ -5,13 +5,14 @@
 'use client';
 
 import { AppHeader } from '@/components/layouts/header';
-import { AppSidebar } from '@/components/layouts/sidebar';
+import { AppSidebarLeft } from '@/components/layouts/sidebar-left';
 import { AppToastProvider } from '@/components/providers/app-toast';
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SWRConfig } from 'swr';
 import ModalRoot from '@/components/modals/ModalRoot';
+import { MainInset } from '@/components/ui/main';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,8 +23,6 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
-
-
 
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -42,12 +41,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SWRConfig value={{ fetcher, revalidateOnFocus: false }}>
           <AppToastProvider>
             <SidebarProvider>
-              <AppSidebar variant="inset" />
-              <SidebarInset>
+              <AppSidebarLeft variant="inset" />
+              <MainInset>
                 <AppHeader />
                 {children}
                 <ModalRoot />
-              </SidebarInset>
+              </MainInset>
             </SidebarProvider>
           </AppToastProvider>
         </SWRConfig>

@@ -54,6 +54,7 @@ export default function MediaPage() {
         refetchMedia();
         success();
     }
+
     /* ---- UI: Folder card (giữ nguyên markup cũ) ---- */
     function FolderCard({ f, onOpen }: { f: Folder; onOpen?: (id: number) => void }) {
         const itemText =
@@ -83,7 +84,7 @@ export default function MediaPage() {
                                 src={f.cover_url}
                                 alt={f.name}
                                 className="h-full w-full object-cover"
-                                onError={(e) => ((e.currentTarget as HTMLImageElement).src = '/placeholder.png')}
+                                onError={(e) => ((e.currentTarget as HTMLImageElement).src = '/thumb-default.jpeg')}
                             />
                         ) : (
                             <div className="flex h-full w-full">
@@ -268,7 +269,7 @@ export default function MediaPage() {
                 <div className="flex items-center gap-2">
                     <label className="text-sm text-muted-foreground">Hiển thị</label>
                     <select
-                        className="h-8 rounded-md border bg-background px-2 text-sm"
+                        className="h-8 rounded-md border bg- px-1 text-sm"
                         value={pageSize}
                         onChange={(e) => {
                             setPage(1);
@@ -277,7 +278,7 @@ export default function MediaPage() {
                     >
                         {[24, 48, 96, 150].map((n) => (
                             <option key={n} value={n}>
-                                {n}/trang
+                                {n}
                             </option>
                         ))}
                     </select>

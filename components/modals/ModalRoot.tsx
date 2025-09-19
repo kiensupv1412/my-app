@@ -1,35 +1,43 @@
-/*
- * path: components/modals/ModalRoot.tsx
- */
 'use client';
 
 import * as React from 'react';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { closeModal, resolveModal, useModalStore } from '@/hooks/useMedia';
+import { closeModal, resolveModal, useModalStore } from '@/hooks/useModal';
 
 export default function ModalRoot() {
     const { open, payload } = useModalStore();
-    const isMobile = useIsMobile();
-
     if (!open || !payload) return null;
 
     const { Comp, props } = payload as any;
 
-    const onResolve = (v: unknown) => { resolveModal(v); closeModal(); };
-    const onClose = () => closeModal();
+    const userOnResolve = props?.onResolve as ((v: unknown) => void) | undefined;
+    const userOnClose = props?.onClose as (() => void) | undefined;
 
-    const title = (Comp as any).displayName || (Comp as any).name || 'Modal';
+    const onResolve = (v: unknown) => {
+        try {
+            userOnResolve?.(v);
+        } catch (e) {
+            console.error('[ModalRoot] userOnResolve error:', e);
+        } finally {
+            resolveModal(v);
+        }
+    };
+
+    const onClose = () => {
+        try {
+            userOnClose?.();
+        } catch (e) {
+            console.error('[ModalRoot] userOnClose error:', e);
+        } finally {
+            closeModal();
+        }
+    };
 
     return (
-        <Drawer open={open} onOpenChange={(v) => !v && closeModal()} direction={isMobile ? 'bottom' : 'right'}>
-            <DrawerContent>
-                <DrawerHeader className="flex items-center justify-between">
-                    <DrawerTitle>{title}</DrawerTitle>
-                </DrawerHeader>
-
-                <Comp {...props} onResolve={onResolve} onClose={onClose} />
-            </DrawerContent>
-        </Drawer>
+        <Comp
+            {...props}
+            open={open}
+            onResolve={onResolve}
+            onClose={onClose}
+        />
     );
 }

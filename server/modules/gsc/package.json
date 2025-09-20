@@ -5,7 +5,13 @@
   "main": "./index.ts",
   "type": "commonjs",
   "bin": {
-    "gsc": "./bin.js"
+    "gsc": "bin/gsc"
+  },
+  "scripts": {
+    "index": "ts-node ./src/cli.ts",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "link": "npm run build && npm i -g ."
   },
   "keywords": [
     "google",
@@ -18,11 +24,6 @@
     "typescript"
   ],
   "license": "MIT",
-  "scripts": {
-    "index": "ts-node ./src/cli.ts",
-    "build": "tsup",
-    "dev": "tsup --watch"
-  },
   "dependencies": {
     "commander": "^12.1.0",
     "googleapis": "131.0.0",

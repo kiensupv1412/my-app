@@ -13,7 +13,6 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "outDir": "./.dts",
     "plugins": [
       {
         "name": "next"
@@ -32,8 +31,8 @@
     "server/modules/gsc/src/gsc.ts",
     "server/modules/gsc/src/auth.ts",
     "server/modules/gsc/bin.ts",
-    "server/modules/gsc/cli.ts",
-    "server/modules/gsc/index.ts",
+    "server/modules/gsc/cli.js",
+    "server/modules/gsc/index.js",
     "server/modules/gsc/src/utils.ts",
     "server/modules/gsc/src/types.ts"
 , "components/editor/editor-kit.tsx", "components/editor/plate-editor.tsx"  ],

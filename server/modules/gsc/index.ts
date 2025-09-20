@@ -45,20 +45,20 @@ export const index = async (input: string = process.argv[2], options: IndexOptio
   }
 
   if (!options.client_email) {
-    options.client_email = process.env.GIS_CLIENT_EMAIL;
+    options.client_email = process.env.GSC_CLIENT_EMAIL;
   }
   if (!options.private_key) {
-    options.private_key = process.env.GIS_PRIVATE_KEY;
+    options.private_key = process.env.GSC_PRIVATE_KEY;
   }
   if (!options.path) {
-    options.path = process.env.GIS_PATH;
+    options.path = process.env.GSC_PATH;
   }
   if (!options.urls) {
-    options.urls = process.env.GIS_URLS ? process.env.GIS_URLS.split(",") : undefined;
+    options.urls = process.env.GSC_URLS ? process.env.GSC_URLS.split(",") : undefined;
   }
   if (!options.quota) {
     options.quota = {
-      rpmRetry: process.env.GIS_QUOTA_RPM_RETRY === "true",
+      rpmRetry: process.env.GSC_QUOTA_RPM_RETRY === "true",
     };
   }
 

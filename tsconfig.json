@@ -13,6 +13,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "outDir": "./.dts",
     "plugins": [
       {
         "name": "next"
@@ -27,14 +28,14 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "server/modules/gsc/shared/index.js",
-    "server/modules/gsc/shared/gsc.js",
-    "server/modules/gsc/shared/auth.js",
-    "server/modules/gsc/bin.js",
-    "server/modules/gsc/cli.js",
-    "server/modules/gsc/index.js",
-    "server/modules/gsc/shared/utils.js",
-    "server/modules/gsc/shared/types.js"
+    "server/modules/gsc/src/index.ts",
+    "server/modules/gsc/src/gsc.ts",
+    "server/modules/gsc/src/auth.ts",
+    "server/modules/gsc/bin.ts",
+    "server/modules/gsc/cli.ts",
+    "server/modules/gsc/index.ts",
+    "server/modules/gsc/src/utils.ts",
+    "server/modules/gsc/src/types.ts"
 , "components/editor/editor-kit.tsx", "components/editor/plate-editor.tsx"  ],
   "exclude": ["node_modules"]
 }

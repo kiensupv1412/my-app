@@ -272,7 +272,7 @@ export function useFolders(config?: SWRConfiguration) {
     folders: (data ?? []) as FolderItem[],
     error,
     isLoading,
-    refetch: mutate, // alias cho quen tay
+    refetch: mutate,
   }
 }
 
@@ -301,6 +301,7 @@ export function useMediaList(
   );
 
   return {
+    resp: data,
     media: (data?.rows ?? []) as MediaItem[],
     total: Number(data?.total ?? 0),
     page: Number(data?.page ?? params.page),

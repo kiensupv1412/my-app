@@ -1,8 +1,14 @@
 // server/models/folder.model.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('./db');
+const Media = require("./media.model")
 
 const Folder = sequelize.define('media_folders', {
+  id: {
+    type: DataTypes.INTEGER.UNSIGNED,
+    primaryKey: true,
+    autoIncrement: true,
+  },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -19,9 +25,12 @@ const Folder = sequelize.define('media_folders', {
   },
 }, {
   tableName: 'media_folders',
-  timestamps: true,     // để Sequelize quản lý createdAt / updatedAt
-  underscored: true,    // map created_at, updated_at
+  timestamps: true,
+  underscored: true,
 });
+
+Folder.hasMany(Media, { foreignKey: 'folder_id', sourceKey: 'id' });
+Media.belongsTo(Folder, { foreignKey: 'folder_id', targetKey: 'id' });
 
 async function getFolderById(id) {
   return Folder.findByPk(id, { attributes: ['id', 'slug', 'name', 'site'] });

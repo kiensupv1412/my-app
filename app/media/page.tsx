@@ -4,6 +4,7 @@
 
 'use client';
 
+import FolderHeader from '@/components/media/FolderHeader';
 import { MediaDetail } from '@/components/media/media-detail';
 import { UploadMediaDialog } from '@/components/media/upload-media-dialog';
 import { confirmDelete } from '@/components/modals/confirm-delete-service';
@@ -17,53 +18,124 @@ import {
     useMediaList,
 } from '@/lib/media.api';
 import { IconChevronLeft, IconPlus } from '@tabler/icons-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import * as React from 'react';
+
+function clamp(n: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, n));
+}
+function toInt(v: string | null, d: number) {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : d;
+}
 
 export default function MediaPage() {
     const router = useRouter();
-    const { success } = useAppToast();
-    const [currentFolderId, setCurrentFolderId] = React.useState<number | null>(null);
-    const [page, setPage] = React.useState(1);
-    const [pageSize, setPageSize] = React.useState(48);
+    const pathname = usePathname();
+    const sp = useSearchParams();
+    const { success, error } = useAppToast();
 
-    const { folders, isLoading: foldersLoading, refetch: refetchFolders } = useFolders();
-    const { media, total, isLoading: mediaLoading, refetch: refetchMedia } = useMediaList({ page, pageSize, folder_id: currentFolderId });
-    const currentFolder = React.useMemo(() => folders.find((f) => f.id === currentFolderId) || null, [folders, currentFolderId],
+    const [currentFolderId, setCurrentFolderId] = React.useState<number | null>(
+        sp.get('folder') ? Number(sp.get('folder')) : null
     );
-    const [loading, setLoading] = React.useState<boolean>(false);
+    const [pageSize, setPageSize] = React.useState<number>(toInt(sp.get('pageSize'), 48));
+    const [page, setPage] = React.useState<number>(toInt(sp.get('page'), 1));
 
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    // ===== Data hooks =====
+    const { folders, isLoading: foldersLoading, refetch: refetchFolders } = useFolders();
+    const { resp, media, total, isLoading: mediaLoading, refetch: refetchMedia, mutate: mutateMedia } =
+        useMediaList({ page, pageSize, folder_id: currentFolderId });
 
+    const currentFolder = React.useMemo(
+        () => folders.find((f) => f.id === currentFolderId) || null,
+        [folders, currentFolderId]
+    );
+
+    // ===== derived =====
+    const totalPages = React.useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
+
+    // ===== sync URL khi state đổi =====
+    const syncUrl = React.useCallback(
+        (next: { page?: number; pageSize?: number; folder?: number | null }) => {
+            const q = new URLSearchParams(sp.toString());
+            if (next.page !== undefined) q.set('page', String(next.page));
+            if (next.pageSize !== undefined) q.set('pageSize', String(next.pageSize));
+            if (next.folder === null) q.delete('folder');
+            else if (next.folder !== undefined) q.set('folder', String(next.folder));
+            router.replace(`${pathname}?${q.toString()}`);
+        },
+        [router, pathname, sp]
+    );
+
+    // Reset page về 1 khi đổi folder
+    React.useEffect(() => {
+        setPage(1);
+    }, [currentFolderId]);
+
+    // Khi total thay đổi (sau delete…), đảm bảo page không vượt totalPages
+    React.useEffect(() => {
+        setPage((p) => clamp(p, 1, totalPages));
+    }, [totalPages]);
+
+    // Loading cục bộ cho nút / thao tác
+    const [busy, setBusy] = React.useState(false);
+
+    // ===== Handlers =====
     async function handleCreateFolder() {
         const name = prompt('Tên folder mới:');
         if (!name) return;
-        await apiCreateFolder(name, 1);
-        refetchFolders();
+        setBusy(true);
+        try {
+            await apiCreateFolder(name.trim(), 1);
+            await refetchFolders();
+            success('Đã tạo folder');
+        } catch (e: any) {
+            error(e?.message ?? 'Tạo folder thất bại');
+        } finally {
+            setBusy(false);
+        }
     }
 
     async function handleDelete(id: number) {
         const ok = await confirmDelete({
-            title: `Xoá ảnh`,
+            title: 'Xoá ảnh',
             description: 'Ảnh sẽ bị xoá vĩnh viễn. Bạn chắc chứ?',
             confirmText: 'Xoá',
             cancelText: 'Huỷ',
         });
         if (!ok) return;
-        await apiDeleteMedia(id);
-        refetchMedia();
-        success();
+
+        setBusy(true);
+        const prevRaw = resp;
+
+        try {
+            await mutateMedia((cur: any) => {
+                if (!cur) return cur;
+                const nextRows = (cur.rows ?? []).filter((m: any) => m.id !== id);
+                const nextTotal = Math.max(0, (cur.total ?? 0) - 1);
+
+                return { ...cur, rows: nextRows, total: nextTotal };
+            }, false);
+
+            await apiDeleteMedia(id);
+
+            success('Đã xoá ảnh');
+
+        } catch (e: any) {
+            await mutateMedia(prevRaw, false);
+            error(e?.message ?? 'Xoá thất bại');
+        } finally {
+            setBusy(false);
+        }
     }
 
-    /* ---- UI: Folder card (giữ nguyên markup cũ) ---- */
-    function FolderCard({ f, onOpen }: { f: Folder; onOpen?: (id: number) => void }) {
+    function FolderCard({ folder, onOpen }: { folder: Folder; onOpen?: (id: number) => void }) {
         const itemText =
-            typeof f.total === 'number'
-                ? f.total === 0
-                    ? 'Folder is empty'
-                    : `${f.total} item${f.total > 1 ? 's' : ''}`
+            typeof folder.total === 'number'
+                ? folder.total === 0
+                    ? 'Trống'
+                    : `${folder.total} mục`
                 : '—';
-
         return (
             <div
                 role="button"
@@ -71,18 +143,18 @@ export default function MediaPage() {
                 onClick={() => {
                     // khi mở 1 folder → reset page về 1
                     setPage(1);
-                    onOpen?.(f.id);
+                    onOpen?.(folder.id);
                 }}
                 className="group relative w-full text-left"
-                title={f.name}
+                title={folder.name}
             >
                 <div className="relative bg-background transition-colors hover:bg-accent/30">
                     <div className="relative border rounded-sm h-28 w-full overflow-hidden">
                         {/* icon/cover */}
-                        {f.cover_url ? (
+                        {folder.cover_url ? (
                             <img
-                                src={f.cover_url}
-                                alt={f.name}
+                                src={folder.cover_url}
+                                alt={folder.name}
                                 className="h-full w-full object-cover"
                                 onError={(e) => ((e.currentTarget as HTMLImageElement).src = '/thumb-default.jpeg')}
                             />
@@ -111,86 +183,36 @@ export default function MediaPage() {
                         {/* name pill full width */}
                         <div className="absolute bottom-0 left-0 right-0">
                             <div className="w-full bg-gray-200 px-3 py-2 text-sm font-semibold text-foreground text-center">
-                                {f.name}
+                                {folder.name}
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* caption */}
-                <div className="mt-3">
-                    <div className="line-clamp-1 text-sm font-medium">{f.name}</div>
+                <div className="mt-1">
                     <div className="text-xs text-muted-foreground">{itemText}</div>
                 </div>
             </div>
         );
     }
 
-    /* ---- BACK button khi đang ở trong folder ---- */
-    function FolderHeader() {
-        if (currentFolderId === null) return (
-            <div className="flex justify-between">
-                <div className="flex items-center">
-                    <div className="text-sm text-muted-foreground">
-                        <span className="font-medium">All media</span>
-                    </div>
-                </div>
-                <UploadMediaDialog
-                    currentFolderId={currentFolderId}
-                    onUploaded={() => {
-                        setPage(1);
-                        refetchMedia();   // ✅ gọi lại SWR
-                    }}
-                >
-                    <Button variant="outline" size="sm">
-                        <IconPlus />
-                        <span className="hidden lg:inline">Upload Image</span>
-                    </Button>
-                </UploadMediaDialog>
-            </div>
-        );
-
-        return (
-            <div className="flex justify-between">
-                <div className="flex items-center">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                            setPage(1);
-                            setCurrentFolderId(null);
-                        }}
-                        className="gap-1"
-                    >
-                        <IconChevronLeft className="h-4 w-4" />
-                        All media
-                    </Button>
-                    <div className="text-sm text-muted-foreground">
-                        <span className="mx-2">/</span>
-                        <span className="font-medium">{currentFolder ? currentFolder.name : 'Folder'}</span>
-                    </div>
-                </div>
-                <UploadMediaDialog
-                    currentFolderId={currentFolderId}
-                    onUploaded={
-                        () => {
-                            setPage(1)
-                            refetchMedia()
-                        }}
-                >
-                    <Button variant="outline" size="sm">
-                        <IconPlus />
-                        <span className="hidden lg:inline">Upload Image</span>
-                    </Button>
-                </UploadMediaDialog>
-            </div >
-        );
-    }
-
     return (
         <div className="flex flex-col h-full p-6 space-y-4">
             <div className='space-y-4'>
-                <FolderHeader />
+                <FolderHeader
+                    currentFolderId={currentFolderId}
+                    currentFolderName={currentFolder?.name ?? null}
+                    onBack={() => {
+                        setPage(1);
+                        router.push('/media');
+                    }}
+                    uploadTargetFolderId={currentFolderId}
+                    onUploaded={() => {
+                        setPage(1);
+                        refetchMedia();
+                    }}
+                />
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
                     {currentFolderId === null && (
                         <>
@@ -212,10 +234,10 @@ export default function MediaPage() {
                                     </div>
                                 </div>
                             </button>
-                            {folders.map((f) => (
+                            {folders.map((folder) => (
                                 <FolderCard
-                                    key={f.id}
-                                    f={f}
+                                    key={folder.id}
+                                    folder={folder}
                                     onOpen={(id) => {
                                         setPage(1);
                                         router.push(`/media/${id}`);
@@ -228,11 +250,11 @@ export default function MediaPage() {
 
                 {/* GRID 2: MEDIA LIST (giữ layout cũ) */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 flex-1">
-                    {loading && (
+                    {foldersLoading && (
                         <div className="col-span-full py-6 text-center text-sm text-muted-foreground">Đang tải…</div>
                     )}
 
-                    {!loading &&
+                    {!mediaLoading &&
                         media.map((m) => (
                             <MediaDetail
                                 key={m.id}
@@ -255,15 +277,15 @@ export default function MediaPage() {
                             />
                         ))}
 
-                    {!loading && media.length === 0 && (
-                        <div className="col-span-full py-6 text-center text-sm text-muted-foreground">Không có ảnh nào.</div>
+                    {!mediaLoading && media.length === 0 && (
+                        <div className="col-span-full py-6 text-center text-sm text-muted-foreground">Không có mục nào.</div>
                     )}
                 </div>
             </div>
             {/* FOOTER: Phân trang + Hiển thị */}
             <div className="flex items-center justify-between mt-auto border-t py-2">
                 <div className="text-xs text-muted-foreground">
-                    Trang {page}/{totalPages} · Tổng {total} ảnh
+                    Trang {page}/{totalPages} · Tổng {total} mục
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -287,7 +309,7 @@ export default function MediaPage() {
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={page <= 1 || loading}
+                            disabled={page <= 1}
                             onClick={() => setPage((p) => Math.max(1, p - 1))}
                         >
                             Prev
@@ -295,7 +317,7 @@ export default function MediaPage() {
                         <Button
                             variant="outline"
                             size="sm"
-                            disabled={page >= totalPages || loading}
+                            disabled={page >= totalPages}
                             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                         >
                             Next

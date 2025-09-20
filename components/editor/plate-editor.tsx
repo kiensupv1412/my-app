@@ -12,8 +12,8 @@ import { BaseEditorKit } from './editor-base-kit';
 import { serializeCleanHtml } from '@/lib/serializeCleanHtml';
 import { serializeHtml } from 'platejs';
 
-export function PlateEditor() {
+export function PlateEditor({ id }: { id: string }) {
   return (
-    <Editor variant="demo" />
+    <Editor variant="demo" className={id == "description" ? 'pb-20' : ''} />
   );
 } 

@@ -10,7 +10,7 @@ import { Button } from "../ui/button";
 import { Article, ArticleUpdatePayload, Categories, MediaItem, Mode, STATUS } from "@/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppToast } from "../providers/app-toast";
-import { plateToHtml } from "@/lib/editorManeger";
+import { handlePreview, plateToHtml } from "@/lib/editorManeger";
 import { createArticleOptimistic, updateArticleOptimistic } from "@/hooks/useArticles";
 import { useRouter } from 'next/navigation'
 import PickThumb from "./PickThumb";
@@ -141,7 +141,7 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
     }
 
     return (
-        <div className='w-[400px]'>
+        <div className='w-[500px]'>
             <div>
                 <div className="gap-1">
                     <div>
@@ -231,13 +231,13 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                             </div>
                         </div>
                         <div className="flex justify-end gap-2 pt-1">
-                            <Button type="button"
-                                onClick={handleSubmit}
-                                disabled={!form.title || !form.slug || !form.category_id || isSubmittingRef.current}
-                            >
-                                {isSubmittingRef.current ? 'Đang lưu…' : (mode === 'create' ? 'Tạo bài' : 'Cập nhật')}
-                            </Button>
-                            <div  >
+                            <div>
+                                <Button type="button" variant="outline"
+                                    onClick={() => { handlePreview(contentEditor) }}>
+                                    Xem Trước
+                                </Button>
+                            </div>
+                            <div>
                                 <Button type="button" variant="outline"
                                     onClick={
                                         () => {
@@ -247,6 +247,11 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                                     Lưu nháp
                                 </Button>
                             </div>
+                            <Button type="button"
+                                onClick={handleSubmit}
+                                disabled={!form.title || !form.slug || !form.category_id || isSubmittingRef.current}>
+                                {isSubmittingRef.current ? 'Đang lưu…' : (mode === 'create' ? 'Tạo bài' : 'Cập nhật')}
+                            </Button>
                         </div>
                     </form>
                 </div>

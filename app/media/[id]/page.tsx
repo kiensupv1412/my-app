@@ -1,4 +1,6 @@
-// app/media/[id]/page.tsx
+/*
+ * path: app/media/[id]/page.tsx
+ */
 'use client';
 
 import * as React from 'react';
@@ -16,6 +18,7 @@ import {
     useFolders,
     useMediaList,
 } from '@/lib/media.api';
+import FolderHeader from '@/components/media/FolderHeader';
 
 export default function MediaFolderPage({ params }: { params: { id: string } }) {
     const router = useRouter();
@@ -56,52 +59,26 @@ export default function MediaFolderPage({ params }: { params: { id: string } }) 
         });
         if (!ok) return;
         await apiDeleteMedia(id);
-        refetchMedia();    // reload list trong folder hiện tại
+        refetchMedia();
         success();
-    }
-
-    // Header (giữ UI, chỉ đổi hành vi back → push về /media)
-    function FolderHeader() {
-        return (
-            <div className="flex justify-between">
-                <div className="flex items-center">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                            setPage(1);
-                            router.push('/media');     // ⬅️ quay về root
-                        }}
-                        className="gap-1"
-                    >
-                        <IconChevronLeft className="h-4 w-4" />
-                        All media
-                    </Button>
-                    <div className="text-sm text-muted-foreground">
-                        <span className="mx-2">/</span>
-                        <span className="font-medium">{currentFolder ? currentFolder.name : 'Folder'}</span>
-                    </div>
-                </div>
-                <UploadMediaDialog
-                    currentFolderId={folderId}
-                    onUploaded={() => { setPage(1); refetchMedia(); }}
-                >
-                    <Button variant="outline" size="sm">
-                        <IconPlus />
-                        <span className="hidden lg:inline">Upload Image</span>
-                    </Button>
-                </UploadMediaDialog>
-            </div>
-        );
     }
 
     return (
         <div className="flex flex-col h-full p-6 space-y-4">
             <div className="space-y-4">
-                <FolderHeader />
-
-                {/* Không render lưới Folders khi đang trong folder (giữ logic cũ: chỉ hiện khi currentFolderId === null) */}
-
+                <FolderHeader
+                    currentFolderId={folderId}
+                    currentFolderName={currentFolder?.name ?? null}
+                    onBack={() => {
+                        setPage(1);
+                        router.push('/media');
+                    }}
+                    uploadTargetFolderId={folderId}
+                    onUploaded={() => {
+                        setPage(1);
+                        refetchMedia();
+                    }}
+                />
                 {/* MEDIA LIST */}
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 flex-1">
                     {mediaLoading && (
@@ -136,13 +113,11 @@ export default function MediaFolderPage({ params }: { params: { id: string } }) 
                     )}
                 </div>
             </div>
-
             {/* FOOTER: phân trang */}
             <div className="flex items-center justify-between mt-auto border-t py-2">
                 <div className="text-xs text-muted-foreground">
                     Trang {page}/{totalPages} · Tổng {total} ảnh
                 </div>
-
                 <div className="flex items-center gap-2">
                     <label className="text-sm text-muted-foreground">Hiển thị</label>
                     <select

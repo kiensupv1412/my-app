@@ -22,13 +22,13 @@ export function ContentEditor({ mode, article, descEditor, contentEditor }: { mo
     return (
         <div className="w-full flex flex-col gap-4 border-r">
             <Plate editor={descEditor}>
-                <EditorContainer>
-                    <PlateEditor />
+                <EditorContainer className="h-auto">
+                    <PlateEditor id={"description"} />
                 </EditorContainer>
             </Plate>
             <Plate editor={contentEditor}>
                 <EditorContainer>
-                    <PlateEditor />
+                    <PlateEditor id={"content"} />
                 </EditorContainer>
             </Plate>
         </div>)

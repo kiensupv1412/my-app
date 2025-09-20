@@ -4,6 +4,7 @@
 const path = require('path');
 const { mkdirSync, existsSync } = require('fs');
 const { Folder } = require('../models/folder.model');
+const Sequelize = require('../models/db');
 
 function slugify(s) {
   return String(s || '')
@@ -25,8 +26,22 @@ function ensureDir(p) {
 async function list(req, res, next) {
   try {
     const rows = await Folder.findAll({
+      attributes: [
+        'id', 'name', 'slug', 'site', 'created_at', 'updated_at',
+        [
+          // đếm số media thuộc folder này
+          Sequelize.literal(`(
+            SELECT COUNT(*) 
+            FROM media_storage AS m 
+            WHERE m.folder_id = media_folders.id
+          )`),
+          'total'
+        ],
+      ],
       order: [['id', 'DESC']],
+      raw: true,
     });
+
     res.json(rows);
   } catch (e) {
     next(e);

@@ -74,15 +74,31 @@ export function UploadMediaDialog({
         const target = e.target;
         if (!target || !target.files) return;
 
-        const next: PickedFile[] = [];
-        for (let i = 0; i < target.files.length; i++) {
-            const f = target.files[i];
-            const okType = ALLOWED.includes(f.type);
-            const okSize = f.size <= 20 * 1024 * 1024; // 20MB
-            const err = okType && okSize ? undefined : !okType ? 'Định dạng không hỗ trợ' : 'Kích thước vượt 20MB';
-            next.push({ file: f, url: URL.createObjectURL(f), error: err });
-        }
-        setFiles(next);
+        setFiles((prev) => {
+            const prevKeys = new Set(prev.map(f => `${f.file.name}_${f.file.size}`));
+
+            const next: PickedFile[] = [];
+            for (let i = 0; i < target.files.length; i++) {
+                const f = target.files[i];
+                const key = `${f.name}_${f.size}`;
+
+                if (prevKeys.has(key)) continue;
+
+                const okType = ALLOWED.includes(f.type);
+                const okSize = f.size <= 20 * 1024 * 1024;
+                const err = okType && okSize
+                    ? undefined
+                    : !okType
+                        ? 'Định dạng không hỗ trợ'
+                        : 'Kích thước vượt 20MB';
+
+                next.push({ file: f, url: URL.createObjectURL(f), error: err });
+            }
+
+            // File mới luôn đứng trước
+            return [...next, ...prev];
+        });
+
         // reset input để onChange vẫn chạy nếu chọn lại đúng file đó
         target.value = '';
     }
@@ -181,7 +197,7 @@ export function UploadMediaDialog({
                 </div>
 
                 {/* Body */}
-                <div className="px-6 py-4 overflow-y-auto">
+                <div className="h-56 px-6 py-2 overflow-y-auto">
                     {files.length > 0 ? (
                         <div
                             className="max-w-full w-full overflow-x-auto overflow-y-hidden rounded-md border p-2"
@@ -231,13 +247,16 @@ export function UploadMediaDialog({
                 </div>
 
                 {/* Footer */}
-                <div className="border-t p-6 flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setOpen(false)} disabled={uploading}>
-                        Cancel
-                    </Button>
-                    <Button onClick={onUpload} disabled={uploading || files.length === 0}>
-                        {uploading ? 'Uploading…' : 'Upload'}
-                    </Button>
+                <div className="flex items-center justify-between mt-auto border-t py-2">
+                    <div className="ps-6 text-xs text-muted-foreground">Đã chọn: {files.length} file</div>
+                    <div className="border-t p-6 flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setOpen(false)} disabled={uploading}>
+                            Cancel
+                        </Button>
+                        <Button onClick={onUpload} disabled={uploading || files.length === 0}>
+                            {uploading ? 'Uploading…' : 'Upload'}
+                        </Button>
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>

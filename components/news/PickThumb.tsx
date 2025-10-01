@@ -17,19 +17,22 @@ import {
     IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight
 } from "@tabler/icons-react";
 import { MediaItem } from '@/types';
+import { Separator } from '../ui/separator';
 
 type Props = {
     thumb: MediaItem | undefined;
     onConfirmAction: (media: MediaItem | undefined) => void;
+    fallbackUrl?: string;           // ảnh mặc định khi chưa có thumb
+    overrideTriggerUrl?: string;    // URL ép để hiển thị ở trigger (preview cục bộ)
 };
 
-export default function PickThumb({ thumb, onConfirmAction }: Props) {
+export default function PickThumb({ thumb, onConfirmAction, fallbackUrl, overrideTriggerUrl }: Props) {
     const [open, setOpen] = React.useState(false);
     const [selected, setSelected] = React.useState<MediaItem | undefined>(thumb);
 
-    React.useEffect(() => {
-        setSelected(thumb);
-    }, [thumb?.id]);
+    // React.useEffect(() => {
+    //     setSelected(thumb);
+    // }, [thumb?.id]);
 
     const commit = React.useCallback(() => {
         if (selected?.id == thumb?.id) return;
@@ -71,13 +74,22 @@ export default function PickThumb({ thumb, onConfirmAction }: Props) {
         setPageSize(val);
         setPage(1);
     };
+    const triggerSrc =
+        overrideTriggerUrl
+        ?? selected?.file_url
+        ?? fallbackUrl
+        ?? '/thumb-1920x1080.png';
+
+
+    const bgItems = items.filter(m => m.is_background);
+    const normalItems = items.filter(m => !m.is_background);
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="link" className="px-0 text-left w-full h-full">
                     <img
-                        src={selected?.file_url}
+                        src={triggerSrc}
                         alt={selected?.alt ?? 'thumbnail'}
                         className="block w-full h-auto"
                     />
@@ -96,23 +108,7 @@ export default function PickThumb({ thumb, onConfirmAction }: Props) {
                 {/* Grid ảnh: cao, scroll dọc */}
                 <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-3">
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                        {isLoading && items.length === 0 && Array.from({ length: 24 }).map((_, i) => (
-                            <div key={i} className="h-24 w-full animate-pulse rounded-md bg-muted" />
-                        ))}
-
-                        {!isLoading && error && (
-                            <div className="col-span-full text-sm text-destructive py-8 text-center">
-                                Lỗi tải danh sách ảnh. <Button variant="outline" size="sm" onClick={() => mutate()}>Thử lại</Button>
-                            </div>
-                        )}
-
-                        {!isLoading && !error && items.length === 0 && (
-                            <div className="col-span-full text-sm text-muted-foreground py-8 text-center">
-                                Không có ảnh.
-                            </div>
-                        )}
-
-                        {items.map((media) => {
+                        {bgItems.map((media) => {
                             const isSel = selected?.id === media.id;
                             const src = media.file_url;
                             return (
@@ -120,19 +116,50 @@ export default function PickThumb({ thumb, onConfirmAction }: Props) {
                                     key={media.id}
                                     type="button"
                                     title={media.alt ?? ""}
-                                    onClick={() => {
-                                        setSelected(media);
-                                    }}
+                                    onClick={() => setSelected(media)}
                                     onDoubleClick={commit}
                                     className={cx(
-                                        'relative h-24 w-full overflow-hidden rounded-md border',
-                                        'transition hover:ring-2 hover:ring-primary',
-                                        isSel && 'ring-2 ring-primary border-primary'
+                                        "relative h-24 w-full overflow-hidden rounded-md border",
+                                        "transition hover:ring-2 hover:ring-primary",
+                                        isSel && "ring-2 ring-primary border-primary"
                                     )}
                                 >
                                     <img
                                         src={src}
-                                        alt={media.alt ?? 'thumb'}
+                                        alt={media.alt ?? "thumb"}
+                                        className="h-full w-full object-cover"
+                                        loading="lazy"
+                                    />
+                                    {isSel && (
+                                        <span className="absolute right-1 top-1 text-[10px] rounded bg-primary px-1.5 py-0.5 text-primary-foreground">
+                                            Đã chọn
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <Separator className="my-4" />
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                        {normalItems.map((media) => {
+                            const isSel = selected?.id === media.id;
+                            const src = media.file_url;
+                            return (
+                                <button
+                                    key={media.id}
+                                    type="button"
+                                    title={media.alt ?? ""}
+                                    onClick={() => setSelected(media)}
+                                    onDoubleClick={commit}
+                                    className={cx(
+                                        "relative h-24 w-full overflow-hidden rounded-md border",
+                                        "transition hover:ring-2 hover:ring-primary",
+                                        isSel && "ring-2 ring-primary border-primary"
+                                    )}
+                                >
+                                    <img
+                                        src={src}
+                                        alt={media.alt ?? "thumb"}
                                         className="h-full w-full object-cover"
                                         loading="lazy"
                                     />
@@ -171,8 +198,6 @@ export default function PickThumb({ thumb, onConfirmAction }: Props) {
                             Trang {page}{totalPages ? ` / ${totalPages}` : ""}{typeof total === "number" ? ` • ${total} ảnh` : ""}
                         </div>
                     </div>
-
-                    {/* Pagination buttons */}
                     <div className="flex items-center gap-2">
                         <Button variant="outline" size="icon" className="h-8 w-8 hidden sm:inline-flex"
                             onClick={goFirst} disabled={page <= 1 || isLoading}>
@@ -191,14 +216,12 @@ export default function PickThumb({ thumb, onConfirmAction }: Props) {
                             <IconChevronsRight />
                         </Button>
                     </div>
-
-                    {/* Actions */}
                     <div className="flex items-center gap-2">
-                        <Button type="button" variant="secondary"  >Hủy</Button>
+                        <Button type="button" variant="secondary" onClick={() => setOpen(false)}  >Hủy</Button>
                         <Button type="button" onClick={commit} disabled={selected?.id == thumb?.id}>Chọn</Button>
                     </div>
                 </DialogFooter>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }

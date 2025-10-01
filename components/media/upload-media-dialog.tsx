@@ -19,12 +19,15 @@ import {
 } from '@/components/ui/dialog';
 
 import { apiUpload } from '@/lib/media.api';
+import { Input } from '../ui/input';
+import { Checkbox } from '../ui/checkbox';
 
 type PickedFile = { file: File; url: string; error?: string };
 
 type MediaItem = {
     id: number;
     site?: number;
+    is_background?: boolean | null;
     user_id?: number;
     media_type?: string;
     uuid?: string;
@@ -68,6 +71,7 @@ export function UploadMediaDialog({
     const [open, setOpen] = React.useState(false);
     const [files, setFiles] = React.useState<PickedFile[]>([]);
     const [uploading, setUploading] = React.useState(false);
+    const [isBackground, setIsBackground] = React.useState(false);
     const { success, error } = useAppToast();
 
     function onPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -120,31 +124,27 @@ export function UploadMediaDialog({
     }, []);
 
     async function onUpload() {
-        if (!files.length) return;
-        const valid = files.filter((f) => !f.error);
-        if (!valid.length) { error('Không có file hợp lệ'); return; }
+        if (!files.length) return error('Không có file');
+        const valid = files.filter(f => !f.error);
+        if (!valid.length) return error('Không có file hợp lệ');
 
         setUploading(true);
         try {
-            const opts: { folder_id?: number | null; folder_slug?: string | null } = {};
-            if (currentFolderId !== undefined && currentFolderId !== null) opts.folder_id = currentFolderId;
-            if (currentFolderSlug && currentFolderSlug.length) opts.folder_slug = currentFolderSlug;
-
-            const uploaded = await apiUpload(valid.map(v => v.file), opts);
-
-            // ✅ Thông báo cho parent tự refetch/mutate
-            if (uploaded.length) onUploaded?.(uploaded);
-
-            success('Upload thành công', `${valid.length} file đã được tải lên.`);
-            setOpen(false);
-            files.forEach((f) => f.url && URL.revokeObjectURL(f.url));
-            setFiles([]);
+            const uploaded = await apiUpload(valid.map(v => v.file), {
+                folder_id: currentFolderId ?? undefined,
+                folder_slug: currentFolderSlug ?? undefined,
+                is_background: isBackground,                // ✅ truyền flag
+            });
+            onUploaded?.(uploaded);
+            success('Upload thành công');
+            setOpen(false); setFiles([]);
         } catch (e: any) {
-            error('Upload thất bại', e?.message || 'Upload failed');
+            error('Upload thất bại', e?.message);
         } finally {
             setUploading(false);
         }
     }
+
     function onWheelToHorizontal(e: React.WheelEvent<HTMLDivElement>) {
         const el = e.currentTarget;
         if (el.scrollWidth > el.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
@@ -249,6 +249,11 @@ export function UploadMediaDialog({
                 {/* Footer */}
                 <div className="flex items-center justify-between mt-auto border-t py-2">
                     <div className="ps-6 text-xs text-muted-foreground">Đã chọn: {files.length} file</div>
+                    <span className="ml-2 text-sm">is_background</span>
+                    <Checkbox
+                        checked={isBackground}
+                        onCheckedChange={(val) => setIsBackground(!!val)}
+                    />
                     <div className="border-t p-6 flex justify-end gap-2">
                         <Button variant="outline" onClick={() => setOpen(false)} disabled={uploading}>
                             Cancel

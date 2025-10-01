@@ -8,7 +8,7 @@ import { useEditorPlugin, usePluginOption } from 'platejs/react';
 
 import { cn } from '@/lib/utils';
 
-import { ToolbarButton } from './toolbar';
+import { ToolbarButton } from '@/components/ui/toolbar';
 
 export function SuggestionToolbarButton() {
   const { setOption } = useEditorPlugin(SuggestionPlugin);

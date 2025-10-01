@@ -6,10 +6,10 @@
 import {
   IconChevronDown, IconChevronLeft, IconChevronRight, IconChevronsLeft, IconChevronsRight,
   IconCircleCheckFilled, IconDotsVertical, IconEyeOff, IconLayoutColumns, IconPlus, IconTrash,
-  IconTrendingUp
+
 } from "@tabler/icons-react"
 import {
-  ColumnDef, ColumnFiltersState, SortingState, VisibilityState,
+  ColumnDef,
   flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel,
   getSortedRowModel, getFacetedRowModel, getFacetedUniqueValues, useReactTable
 } from "@tanstack/react-table"
@@ -36,12 +36,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { confirmDelete } from '@/components/modals/confirm-delete-service';
 import { MediaThumb } from '../media/media-thumb'
-import { openModal } from '@/hooks/useModal'
 import { useAppToast } from '@/components/providers/app-toast'
-import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "../ui/drawer"
-import { AspectRatio } from "../ui/aspect-ratio"
-import { Separator } from "../ui/separator"
-import { useIsMobile } from "@/hooks/use-mobile"
 
 function formatDate(value: string | Date, opts: Intl.DateTimeFormatOptions = {}) {
   const date = value instanceof Date ? value : new Date(value)
@@ -51,14 +46,11 @@ function formatDate(value: string | Date, opts: Intl.DateTimeFormatOptions = {})
 const tableSchema = z.object({
   id: z.number(),
   title: z.string(),
-  category_name: z.string(),
+  category_id: z.number().optional(),
   status: z.string(),
-  thumb: z.object({
-    file_url: z.string()
-  }),
+  thumb: z.object({ file_url: z.string().optional() }).optional(),
   updated_at: z.string(),
-})
-
+});
 function getColumns(): ColumnDef<z.infer<typeof tableSchema>>[] {
   return [
     { header: "id", cell: ({ row }) => <span className="text-sm text-primary">{row.original.id}</span>, meta: { className: "text-center" } },
@@ -140,8 +132,8 @@ function getColumns(): ColumnDef<z.infer<typeof tableSchema>>[] {
 }
 
 type Props = {
-  articles: any | [];
-  categories: any | [];
+  articles: any[];
+  categories: any[];
   serverPage: number;
   pageCount?: number;
   totalItems?: number;
@@ -156,7 +148,6 @@ export function DataArticles({
   serverPage, pageCount, isLoading, totalItems, pageSize,
   onPageChange, onPageSizeChange
 }: Props) {
-  const { success } = useAppToast();
 
   const [categories, setCategories] = React.useState(() => initialCategories);
   React.useEffect(() => setCategories(initialCategories), [initialCategories]);
@@ -175,9 +166,18 @@ export function DataArticles({
     pageCount: pageCount ?? -1,
     onPaginationChange: (updater) => {
       const next = typeof updater === 'function' ? updater(pagination) : updater;
-      const nextPage = (next.pageIndex ?? pagination.pageIndex) + 1; // 1-based
-      if (nextPage !== serverPage) onPageChange(nextPage);
-      if (next.pageSize && next.pageSize !== pageSize) setPageSize(next.pageSize);
+
+      const nextPageIndex = next.pageIndex ?? pagination.pageIndex;
+      const nextPage = nextPageIndex + 1; // 1-based
+      if (nextPage !== serverPage) {
+        onPageChange(nextPage);
+      }
+
+      const nextSize = next.pageSize ?? pagination.pageSize;
+      if (nextSize !== pageSize) {
+        onPageSizeChange(nextSize);           // ⬅️ thay vì setPageSize(...)
+        if (nextPage !== 1) onPageChange(1);  // đổi page size → về trang 1 cho chắc
+      }
     },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -222,7 +222,7 @@ export function DataArticles({
                 Tất cả
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {categories.map((cat) => {
+              {/* {categories.map((cat) => {
                 const isActive = table.getColumn('category_id')?.getFilterValue() === cat.name
                 return (
                   <DropdownMenuCheckboxItem
@@ -238,7 +238,7 @@ export function DataArticles({
                     {cat.name}
                   </DropdownMenuCheckboxItem>
                 )
-              })}
+              })} */}
             </DropdownMenuContent>
           </DropdownMenu>
           <Button variant="outline" size="sm" asChild>
@@ -303,8 +303,7 @@ export function DataArticles({
                 onValueChange={(value) => {
                   const v = Number(value);
                   if (!Number.isFinite(v) || v <= 0) return;
-                  onPageSizeChange(v);
-                  onPageChange(1);
+                  onPageSizeChange(v); // parent sẽ set limit & reset page=1 + sync URL
                 }}
               >
                 <SelectTrigger size="sm" className="w-20" id="rows-per-page">

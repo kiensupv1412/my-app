@@ -14,10 +14,10 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from './popover';
+} from '../../ui/popover';
 import { cn } from '@/lib/utils';
 
-import { ToolbarButton } from './toolbar';
+import { ToolbarButton } from '@/components/ui/toolbar';
 
 const DEFAULT_FONT_SIZE = '16';
 

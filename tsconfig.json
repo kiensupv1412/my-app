@@ -34,7 +34,10 @@
     "server/modules/gsc/cli.js",
     "server/modules/gsc/index.js",
     "server/modules/gsc/src/utils.ts",
-    "server/modules/gsc/src/types.ts"
-, "components/editor/editor-kit.tsx", "components/editor/plate-editor.tsx"  ],
+    "server/modules/gsc/src/types.ts",
+    "components/editor/editor-kit.tsx",
+    "components/editor/plate-editor.tsx",
+    ".vscode/page.tsx"
+  ],
   "exclude": ["node_modules"]
 }

@@ -26,19 +26,19 @@ import {
   withHOC,
 } from 'platejs/react';
 
-import { Button } from './button';
+import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
-} from './popover';
-import { Separator } from './separator';
+} from '../../ui/popover';
+import { Separator } from '@/components/ui/separator';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from './tooltip';
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 export const ColumnElement = withHOC(
@@ -132,9 +132,9 @@ function DropLine() {
         'slate-dropLine',
         'absolute bg-brand/50',
         dropLine === 'left' &&
-          'inset-y-0 left-[-10.5px] w-1 group-first/column:-left-1',
+        'inset-y-0 left-[-10.5px] w-1 group-first/column:-left-1',
         dropLine === 'right' &&
-          'inset-y-0 right-[-11px] w-1 group-last/column:-right-1'
+        'inset-y-0 right-[-11px] w-1 group-last/column:-right-1'
       )}
     />
   );

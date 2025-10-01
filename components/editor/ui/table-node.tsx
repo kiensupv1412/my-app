@@ -60,7 +60,7 @@ import {
 } from 'platejs/react';
 import { useElementSelector } from 'platejs/react';
 
-import { Button } from './button';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -69,8 +69,8 @@ import {
   DropdownMenuItem,
   DropdownMenuPortal,
   DropdownMenuTrigger,
-} from './dropdown-menu';
-import { Popover, PopoverContent } from './popover';
+} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent } from '../../ui/popover';
 import { cn } from '@/lib/utils';
 
 import { blockSelectionVariants } from './block-selection';
@@ -92,7 +92,7 @@ import {
   ToolbarButton,
   ToolbarGroup,
   ToolbarMenuGroup,
-} from './toolbar';
+} from '@/components/ui/toolbar';
 export const TableElement = withHOC(
   TableProvider,
   function TableElement({

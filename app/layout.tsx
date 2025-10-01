@@ -11,7 +11,6 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SWRConfig } from 'swr';
-import ModalRoot from '@/components/modals/ModalRoot';
 import { MainInset } from '@/components/ui/main';
 
 const geistSans = Geist({
@@ -45,7 +44,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <MainInset>
                 <AppHeader />
                 {children}
-                <ModalRoot />
               </MainInset>
             </SidebarProvider>
           </AppToastProvider>

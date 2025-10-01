@@ -4,8 +4,7 @@
 
 "use client"
 import { useSearchParams } from 'next/navigation';
-
-import { useArticle, useCategories } from '@/hooks/useArticles';
+import { useArticle, useCategories } from '@/hooks/use-articles';
 import { ContentEditor } from '@/components/news/ContentEditor';
 import { MetaPanel } from '@/components/news/MetaPanel';
 import { usePlateEditor } from 'platejs/react';

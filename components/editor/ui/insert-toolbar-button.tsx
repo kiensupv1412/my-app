@@ -34,13 +34,13 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from './dropdown-menu';
+} from '@/components/ui/dropdown-menu';
 import {
   insertBlock,
   insertInlineElement,
 } from '@/components/editor/transforms';
 
-import { ToolbarButton, ToolbarMenuGroup } from './toolbar';
+import { ToolbarButton, ToolbarMenuGroup } from '@/components/ui/toolbar';
 
 type Group = {
   group: string;

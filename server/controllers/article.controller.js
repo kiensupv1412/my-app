@@ -2,56 +2,45 @@
  * path: server/controllers/article.controller.js
  */
 
-const fs = require('fs');
-const Article = require('../models/article.model');
-const { getMediaById } = require('../models/media.model');
-const Category = require('../models/category.model');
-const Media = require('../models/media.model');
+const fs = require("fs");
+const Article = require("../models/article.model");
+const Category = require("../models/category.model");
+const Media = require("../models/media.model");
+const { parsePagination, buildMeta } = require("../utils/pagination");
+const { ok, created, badRequest, notFound } = require("../utils/http");
+const { parseId } = require("../utils/ids");
 
 // Lấy tất cả articles
 async function getArticles(req, res, next) {
   try {
-    const page = Math.max(parseInt(req.query.page ?? '1', 10) || 1, 1);
-    const limit = Math.max(parseInt(req.query.limit ?? '10', 10) || 10, 1);
-    const offset = (page - 1) * limit;
+    const { page, limit, offset } = parsePagination(req.query, 15);
+    const total = await Article.count({ distinct: true, col: "Article.id" });
 
-    const { rows, count } = await Article.findAndCountAll({
-      order: [['id', 'DESC']],
+    const rows = await Article.findAll({
+      order: [["id", "DESC"]],
       limit,
       offset,
+      subQuery: false,
       include: [
-        {
-          model: Category,
-          as: 'category'
-        },
-        {
-          model: Media,
-          as: 'thumb',
-        },
+        { model: Category, as: "category" },
+        { model: Media, as: "thumb" },
       ],
     });
 
     res.json({
-      data: rows,
-      meta: {
-        page,
-        limit,
-        total: count,
-        hasNext: offset + rows.length < count,
-      },
+      posts: rows,
+      meta: buildMeta({ page, limit, total }),
     });
   } catch (e) {
     next(e);
   }
 }
 
-// Lấy tất cả categories 
+// Lấy tất cả categories
 async function getCategories(req, res, next) {
   try {
-    const rows = await Category.findAll({
-      order: [['id', 'ASC']]
-    });
-    res.json(rows);
+    const rows = await Category.findAll({ order: [["id", "ASC"]] });
+    return ok(res, rows);
   } catch (e) {
     next(e);
   }
@@ -60,24 +49,24 @@ async function getCategories(req, res, next) {
 // Lấy 1 article theo id
 async function getArticle(req, res, next) {
   try {
-    const id = Number(req.params.id);
-    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' });
+    const id = parseId(req.params.id);
+    if (!id) return badRequest(res, "Bad id");
 
     const row = await Article.findByPk(id, {
       include: [
         {
           model: Category,
-          as: 'category'
+          as: "category",
         },
         {
           model: Media,
-          as: 'thumb',
+          as: "thumb",
         },
       ],
     });
-    if (!row) return res.status(404).json({ error: 'Not found' });
+    if (!row) return notFound(res);
 
-    res.json(row);
+    return ok(res, row);
   } catch (e) {
     next(e);
   }
@@ -88,7 +77,7 @@ async function postArticle(req, res, next) {
   try {
     const data = req.body;
     const article = await Article.create(data);
-    res.json(article);
+    return created(res, article, `/articles/${article.id}`);
   } catch (e) {
     next(e);
   }
@@ -98,19 +87,19 @@ async function postArticle(req, res, next) {
 async function updateArticleOne(req, res, next) {
   try {
     const { id } = req.params;
-    const data = req.body; // chỉ cần field nào có thì update field đó
+    const data = req.body;
 
     const [affectedRows] = await Article.update(data, { where: { id } });
     if (affectedRows === 0) {
-      return res.status(404).json({ error: 'Not found' });
+      return res.status(404).json({ error: "Not found" });
     }
 
     const updated = await Article.findByPk(id, {
       include: [
         {
           model: Category,
-          as: 'category',
-          attributes: ['id', 'name'],
+          as: "category",
+          attributes: ["id", "name"],
         },
       ],
     });
@@ -123,43 +112,23 @@ async function updateArticleOne(req, res, next) {
   }
 }
 
-// Bulk update articles
-async function updateArticleBulk(req, res, next) {
+async function updateArticleOne(req, res, next) {
   try {
-    const items = req.body || [];
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'No items provided' });
-    }
+    const id = parseId(req.params.id);
+    if (!id) return badRequest(res, "Bad id");
 
-    // Với Sequelize, bạn có thể dùng bulkCreate + updateOnDuplicate
-    await Article.bulkCreate(items, {
-      updateOnDuplicate: ['title', 'slug', 'description', 'body', 'category_id', 'status', 'content'],
+    const data = req.body;
+
+    const [affected] = await Article.update(data, { where: { id } });
+    if (!affected) return notFound(res);
+
+    const updated = await Article.findByPk(id, {
+      include: [
+        { model: Category, as: "category", attributes: ["id", "name", "slug"] },
+      ],
     });
 
-    // tuỳ chọn: lưu cache
-    fs.writeFileSync('data.json', JSON.stringify(items, null, 2));
-
-    res.json({ mess: 'ok' });
-  } catch (e) {
-    next(e);
-  }
-}
-
-// Cập nhật thumbnail
-async function setThumb(req, res, next) {
-  try {
-    const id = Number(req.params.id);
-    const { media_id } = req.body;
-
-    if (!Number.isFinite(id) || !Number.isFinite(Number(media_id))) {
-      return res.status(400).json({ error: 'Bad id/media_id' });
-    }
-
-    const media = await getMediaById(Number(media_id));
-    if (!media) return res.status(404).json({ error: 'Media not found' });
-
-    await Article.update({ thumb: media.url }, { where: { id } });
-    res.json({ mess: 'ok', id, thumb: media.url });
+    return ok(res, updated.get({ plain: true }));
   } catch (e) {
     next(e);
   }
@@ -171,6 +140,4 @@ module.exports = {
   getArticle,
   postArticle,
   updateArticleOne,
-  updateArticleBulk,
-  setThumb,
 };

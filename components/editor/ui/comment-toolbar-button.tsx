@@ -11,14 +11,14 @@ import { useEditorRef } from 'platejs/react';
 
 import { commentPlugin } from '@/components/editor/plugins/comment-kit';
 
-import { ToolbarButton } from './toolbar';
+import { ToolbarButton } from '@/components/ui/toolbar';
 
 export function CommentToolbarButton() {
   const editor = useEditorRef();
 
   return (
     <ToolbarButton
-    onClick={(e) => {
+      onClick={(e) => {
         editor.getTransforms(commentPlugin).comment.setDraft();
       }}
       data-plate-prevent-overlay

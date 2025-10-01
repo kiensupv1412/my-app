@@ -36,7 +36,7 @@ import {
 } from 'platejs/react';
 import { type PlateEditor, useEditorRef } from 'platejs/react';
 
-import { Button } from './button';
+import { Button } from '@/components/ui/button';
 import {
   Command,
   CommandGroup,
@@ -47,7 +47,7 @@ import {
   Popover,
   PopoverAnchor,
   PopoverContent,
-} from './popover';
+} from '../../ui/popover';
 import { cn } from '@/lib/utils';
 import { useChat } from '@/components/editor/use-chat';
 

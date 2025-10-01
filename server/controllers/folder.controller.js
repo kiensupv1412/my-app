@@ -1,48 +1,53 @@
 /*
  * path: server/controllers/folder.controller.js
  */
-const path = require('path');
-const { mkdirSync, existsSync } = require('fs');
-const { Folder } = require('../models/folder.model');
-const Sequelize = require('../models/db');
+const path = require("path");
+const { ensureDir } = require("fs-extra"); // dùng fs-extra để có promise
+
+const { Folder } = require("../models/folder.model");
+const Media = require("../models/media.model");
+const Sequelize = require("../models/db");
+const { ok, created, badRequest, notFound } = require("../utils/http");
 
 function slugify(s) {
-  return String(s || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '') || 'folder';
+  return (
+    String(s || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "folder"
+  );
 }
 
-const PUBLIC_DIR = path.join(process.cwd(), 'public');
-const UPLOADS_DIR = path.join(PUBLIC_DIR, 'uploads');
-
-function ensureDir(p) {
-  if (!existsSync(p)) mkdirSync(p, { recursive: true });
-}
+const PUBLIC_DIR = path.join(process.cwd(), "public");
+const UPLOADS_DIR = path.join(PUBLIC_DIR, "uploads");
 
 // GET /folders
 async function list(req, res, next) {
   try {
     const rows = await Folder.findAll({
       attributes: [
-        'id', 'name', 'slug', 'site', 'created_at', 'updated_at',
-        [
-          // đếm số media thuộc folder này
-          Sequelize.literal(`(
-            SELECT COUNT(*) 
-            FROM media_storage AS m 
-            WHERE m.folder_id = media_folders.id
-          )`),
-          'total'
-        ],
+        "id",
+        "name",
+        "slug",
+        "site",
+        "created_at",
+        "updated_at",
+        [Sequelize.fn("COUNT", Sequelize.col("Media.id")), "total"],
       ],
-      order: [['id', 'DESC']],
-      raw: true,
+      include: [
+        {
+          model: Media,
+          attributes: [],
+        },
+      ],
+      group: ["media_folders.id"],
+      order: [["id", "DESC"]],
     });
 
-    res.json(rows);
+    return ok(res, rows);
   } catch (e) {
     next(e);
   }
@@ -51,24 +56,27 @@ async function list(req, res, next) {
 // POST /folders
 async function create(req, res, next) {
   try {
-    const name = String((req.body?.name || '')).trim();
+    const name = String(req.body?.name || "").trim();
     const site = Number(req.body?.site || 0);
-    if (!name) return res.status(400).json({ error: 'Name is required' });
+    if (!name) return badRequest(res, "Name is required");
 
-    let slug = slugify(name);
+    // tạo slug cơ bản
+    let baseSlug = slugify(name, { lower: true, strict: true });
+    let slug = baseSlug;
+    let counter = 1;
 
-    // tránh trùng slug
-    const same = await Folder.findOne({ where: { slug } });
-    if (same) {
-      slug = `${slug}-${Date.now().toString(36).slice(4)}`;
+    // đảm bảo slug unique
+    while (await Folder.findOne({ where: { slug } })) {
+      slug = `${baseSlug}-${counter++}`;
     }
 
+    // tạo record
     const folder = await Folder.create({ name, slug, site });
 
     // tạo thư mục vật lý
-    ensureDir(path.join(UPLOADS_DIR, slug));
+    await ensureDir(path.join(UPLOADS_DIR, slug));
 
-    res.status(201).json(folder);
+    return created(res, folder);
   } catch (e) {
     next(e);
   }
@@ -78,10 +86,10 @@ async function create(req, res, next) {
 async function remove(req, res, next) {
   try {
     const id = Number(req.params.id);
-    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Bad id' });
+    if (!Number.isFinite(id)) return res.status(400).json({ error: "Bad id" });
 
     const folder = await Folder.findByPk(id);
-    if (!folder) return res.status(404).json({ error: 'Not found' });
+    if (!folder) return res.status(404).json({ error: "Not found" });
 
     // TODO: kiểm tra bảng media_storage nếu còn file thì chặn
     await folder.destroy();

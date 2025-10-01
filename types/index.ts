@@ -1,7 +1,5 @@
 export const STATUS = ['draft', 'del', 'yes'] as const;
 export type Status = typeof STATUS[number];
-
-
 export interface Article {
     id: number;
     category_id: number;
@@ -33,6 +31,7 @@ export interface Category {
 export type MediaItem = {
     id: number;
     site: number | null;
+    is_background: boolean | null;
     folder_id: number | null;
     user_id: number | null;
     media_type: string | null;
@@ -54,6 +53,15 @@ export type MediaItem = {
     version: string | null;
     created_at: string | null;
     updated_at: string | null;
+};
+
+export type Meta = {
+    page: number;
+    pages: number;
+    limit: number;
+    total: number | null;
+    prev: number | null;
+    next: number | null;
 };
 
 export type Articles = Article[];

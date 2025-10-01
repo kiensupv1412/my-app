@@ -31,13 +31,13 @@ import {
   DropdownMenuContent,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from './dropdown-menu';
+} from '@/components/ui/dropdown-menu';
 import {
   getBlockType,
   setBlockType,
 } from '@/components/editor/transforms';
 
-import { ToolbarButton, ToolbarMenuGroup } from './toolbar';
+import { ToolbarButton, ToolbarMenuGroup } from '@/components/ui/toolbar';
 
 export const turnIntoItems = [
   {

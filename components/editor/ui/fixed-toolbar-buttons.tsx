@@ -53,12 +53,8 @@ import { ModeToolbarButton } from './mode-toolbar-button';
 import { MoreToolbarButton } from './more-toolbar-button';
 import { TableToolbarButton } from './table-toolbar-button';
 import { ToggleToolbarButton } from './toggle-toolbar-button';
-import { ToolbarButton, ToolbarGroup } from './toolbar';
 import { TurnIntoToolbarButton } from './turn-into-toolbar-button';
-import { handlePreview } from '@/lib/editorManeger';
-import { openModal } from '@/hooks/useModal';
-import { TableCellViewer } from '@/components/modals/contents/TableCellViewer';
-import PickThumb from '@/components/modals/contents/pickThumb';
+import { ToolbarGroup } from '@/components/ui/toolbar';
 
 export function FixedToolbarButtons() {
   const descEditor = useEditorRef('description');

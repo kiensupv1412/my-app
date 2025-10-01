@@ -24,13 +24,13 @@ import {
 } from 'platejs';
 import { useEditorPlugin, useEditorRef, usePluginOption } from 'platejs/react';
 
-import { Button } from '@/components/editor/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/editor/ui/popover';
+} from '@/components/ui/popover';
 import { commentPlugin } from '@/components/editor/plugins/comment-kit';
 import {
   type TDiscussion,
@@ -143,7 +143,7 @@ const BlockCommentContent = ({
         ([node]) =>
           TextApi.isText(node) &&
           editor.getApi(SuggestionPlugin).suggestion.nodeId(node) ===
-            activeSuggestion.suggestionId
+          activeSuggestion.suggestionId
       );
     }
 

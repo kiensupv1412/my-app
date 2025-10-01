@@ -12,22 +12,22 @@ import debounce from 'lodash/debounce.js';
 import { EraserIcon, PlusIcon } from 'lucide-react';
 import { useEditorRef, useEditorSelector } from 'platejs/react';
 
-import { buttonVariants } from './button';
+import { buttonVariants } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from './dropdown-menu';
+} from '@/components/ui/dropdown-menu';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from './tooltip';
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
-import { ToolbarButton, ToolbarMenuGroup } from './toolbar';
+import { ToolbarButton, ToolbarMenuGroup } from '@/components/ui/toolbar';
 
 export function FontColorToolbarButton({
   children,
@@ -219,13 +219,13 @@ function ColorCustom({
     () =>
       customColor
         ? [
-            ...customColors,
-            {
-              isBrightColor: false,
-              name: '',
-              value: customColor,
-            },
-          ]
+          ...customColors,
+          {
+            isBrightColor: false,
+            name: '',
+            value: customColor,
+          },
+        ]
         : customColors,
     [customColor, customColors]
   );

@@ -38,7 +38,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from './ui/popover';
+} from '../ui/popover';
 import { cn } from '@/lib/utils';
 import { aiChatPlugin } from '@/components/editor/plugins/ai-kit';
 
@@ -172,7 +172,7 @@ export function SettingsDialog() {
             'group fixed right-4 bottom-4 z-50 size-10 overflow-hidden',
             'rounded-full shadow-md hover:shadow-lg'
           )}
-          // data-block-hide
+        // data-block-hide
         >
           <Settings className="size-4" />
         </Button>

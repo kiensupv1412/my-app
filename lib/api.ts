@@ -160,61 +160,70 @@ export async function apiDeleteMedia(
   return payload as { mess?: string; ok?: boolean; id: number };
 }
 /** Upload 1 hoặc nhiều file. Có thể truyền folder_id hoặc folder_slug */
+// @/lib/api.ts (hoặc nơi bạn export)
 export async function apiUploadMedia(
   files: File[],
   opts?: {
     folder_id?: number | null;
     folder_slug?: string | null;
     is_background?: boolean | null;
+    headers?: Record<string, string>;
+    onProgress?: (pct: number, evt: ProgressEvent) => void;
   }
-): Promise<MediaItem[]> {
+) {
   if (!files?.length) return [];
 
-  // 1 file → /media/upload ; nhiều file → /media/uploads
-  const url =
-    apiBase() + (files.length === 1 ? "/media/upload" : "/media/uploads");
-
+  const url = apiBase() + (files.length === 1 ? '/media/upload' : '/media/uploads');
   const fd = new FormData();
+  if (files.length === 1) fd.append('file', files[0]);
+  else files.forEach((f) => fd.append('files', f));
 
-  // files
-  if (files.length === 1) {
-    fd.append("file", files[0]);
-  } else {
-    files.forEach((f) => fd.append("files", f));
-  }
-
-  if (Object.prototype.hasOwnProperty.call(opts ?? {}, "folder_id")) {
+  if (Object.prototype.hasOwnProperty.call(opts ?? {}, 'folder_id')) {
     const fid = opts?.folder_id;
-    if (fid === null) {
-      fd.append("folder_id", "null"); // ép root (IS NULL)
-    } else if (typeof fid === "number" && Number.isFinite(fid)) {
-      fd.append("folder_id", String(fid)); // folder cụ thể
+    if (fid === null) fd.append('folder_id', 'null');
+    else if (typeof fid === 'number' && Number.isFinite(fid)) fd.append('folder_id', String(fid));
+  }
+  if (opts?.folder_slug) fd.append('folder_slug', String(opts.folder_slug).trim());
+  if (typeof opts?.is_background === 'boolean') fd.append('is_background', String(opts.is_background));
+
+  const items = await new Promise<any[]>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+
+    // KHÔNG set 'Content-Type' cho FormData
+    if (opts?.headers) {
+      for (const [k, v] of Object.entries(opts.headers)) {
+        if (k.toLowerCase() === 'content-type') continue;
+        xhr.setRequestHeader(k, v);
+      }
     }
-  }
 
-  if (opts?.folder_slug && String(opts.folder_slug).trim().length > 0) {
-    fd.append("folder_slug", String(opts.folder_slug).trim());
-  }
+    xhr.upload.onprogress = (evt) => {
+      if (opts?.onProgress) {
+        if (evt.lengthComputable && evt.total > 0) {
+          const pct = Math.round((evt.loaded / evt.total) * 100);
+          opts.onProgress(Math.min(pct, 100), evt);
+        } else {
+          opts.onProgress(-1, evt); // không tính được tổng
+        }
+      }
+    };
 
-  if (typeof opts?.is_background === "boolean") {
-    fd.append("is_background", String(opts.is_background)); // "true" | "false"
-  }
+    xhr.onload = () => {
+      try {
+        const ok = xhr.status >= 200 && xhr.status < 300;
+        const json = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+        if (!ok) {
+          const msg = typeof json === 'string' ? json : json?.error || `HTTP ${xhr.status}`;
+          return reject(new Error(String(msg)));
+        }
+        resolve(extractItemsFromPayload(json ?? {}));
+      } catch (e) { reject(e); }
+    };
 
-  const res = await fetch(url, { method: "POST", body: fd, cache: "no-store" });
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(fd);
+  });
 
-  let payload: any = null;
-  try {
-    payload = await res.json();
-  } catch {
-    throw new Error("Invalid JSON response from server");
-  }
-
-  if (!res.ok) {
-    const msg =
-      typeof payload === "string" ? payload : payload?.error || "Upload failed";
-    throw new Error(String(msg));
-  }
-
-  const items = extractItemsFromPayload(payload);
   return items;
 }

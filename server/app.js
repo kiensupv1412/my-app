@@ -9,10 +9,10 @@ const sequelize = require("./models/db");
 const articleRoutes = require("./routes/article.routes");
 const mediaRoutes = require("./routes/media.routes");
 const folderRoutes = require("./routes/folder.routes");
-const { uploadDynamic } = require("./helpers/upload");
 // const gscRoutes = require('./routes/gsc.routes');
 
 const { errorHandler, multerErrorHandler } = require("./middleware/errors");
+const { uploadDynamic } = require("./middleware/multer");
 
 const app = express();
 

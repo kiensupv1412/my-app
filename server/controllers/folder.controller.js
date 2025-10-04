@@ -8,6 +8,7 @@ const { Folder } = require("../models/folder.model");
 const Media = require("../models/media.model");
 const Sequelize = require("../models/db");
 const { ok, created, badRequest, notFound } = require("../utils/http");
+const { UPLOADS_DIR } = require("../helpers/paths");
 
 function slugify(s) {
   return (
@@ -21,9 +22,6 @@ function slugify(s) {
   );
 }
 
-const PUBLIC_DIR = path.join(process.cwd(), "public");
-const UPLOADS_DIR = path.join(PUBLIC_DIR, "uploads");
-
 // GET /folders
 async function list(req, res, next) {
   try {
@@ -32,7 +30,6 @@ async function list(req, res, next) {
         "id",
         "name",
         "slug",
-        "site",
         "created_at",
         "updated_at",
         [Sequelize.fn("COUNT", Sequelize.col("Media.id")), "media_count"],
@@ -57,7 +54,6 @@ async function list(req, res, next) {
 async function create(req, res, next) {
   try {
     const name = String(req.body?.name || "").trim();
-    const site = Number(req.body?.site || 0);
     if (!name) return badRequest(res, "Name is required");
 
     // tạo slug cơ bản
@@ -71,7 +67,7 @@ async function create(req, res, next) {
     }
 
     // tạo record
-    const folder = await Folder.create({ name, slug, site });
+    const folder = await Folder.create({ name, slug });
 
     // tạo thư mục vật lý
     await ensureDir(path.join(UPLOADS_DIR, slug));

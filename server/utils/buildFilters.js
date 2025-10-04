@@ -2,9 +2,8 @@
  * path: server/utils/buildFilters.js
  */
 
-import { Op } from "sequelize";
-
-export function buildFilters(query) {
+const { Op } = require("sequelize");
+function buildFilters(query) {
   const where = {};
 
   // filter theo title (search)
@@ -39,3 +38,5 @@ export function buildFilters(query) {
 
   return { where };
 }
+
+module.exports = buildFilters;

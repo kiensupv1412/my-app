@@ -8,7 +8,7 @@ const Media = require("../models/media.model");
 const { parsePagination, buildMeta } = require("../utils/pagination");
 const { ok, created, badRequest, notFound } = require("../utils/http");
 const { parseId } = require("../utils/ids");
-const { buildFilters } = require("../utils/buildFilters");
+const buildFilters = require("../utils/buildFilters");
 
 // Lấy tất cả articles
 async function getArticles(req, res, next) {

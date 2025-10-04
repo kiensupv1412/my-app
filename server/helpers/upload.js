@@ -1,97 +1,79 @@
 /*
- * path: server/helpers/upload.js
+ * server/helpers/upload.js
+ * One-file helper cho upload/media (CommonJS)
  */
-const path = require('path');
-const multer = require('multer');
-const sanitize = require('sanitize-filename');
-const fs = require('fs');
-const { folderAbsPath, ensureDir } = require('./paths');
+const path = require("path");
+const sanitize = require("sanitize-filename");
+const { PUBLIC_DIR } = require("./paths");
 
-// ====== constants ======
-const PUBLIC_DIR = path.join(process.cwd(), 'public');
-const UPLOADS_DIR = path.join(PUBLIC_DIR, 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+/** Chuẩn hoá slug thư mục, ngăn path traversal */
+function sanitizeSlug(input) {
+  const s = String(input || "")
+    .trim()
+    .toLowerCase();
+  return s
+    .replace(/[/\\]+/g, "-") // chặn slash
+    .replace(/\.\.+/g, "-") // chặn ..
+    .replace(/\s+/g, "-") // space -> -
+    .replace(/[^a-z0-9-_]+/g, "-") // ký tự lạ -> -
+    .replace(/-+/g, "-") // gộp ---- -> -
+    .replace(/^[-]+|[-]+$/g, ""); // trim -
+}
 
-const ALLOWED_MIME = new Set([
-    'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif',
-    'video/mp4', 'video/webm'
-]);
+/** Absolute path tới thư mục con trong uploads theo slug an toàn */
+function folderAbsPath(slug) {
+  const safe = sanitizeSlug(slug);
+  const abs = path.join(UPLOADS_DIR, safe || "");
+  const norm = path.normalize(abs);
+  const uploadsNorm = path.normalize(UPLOADS_DIR + path.sep);
+  if (!(norm + path.sep).startsWith(uploadsNorm)) {
+    throw new Error("Invalid folder path");
+  }
+  return norm;
+}
 
-// ====== helpers ======
+/** Tên file an toàn + unique */
 function safeFileName(originalName) {
-    const parsed = path.parse(String(originalName || 'file'));
-    const base = sanitize(parsed.name).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-_]+/g, '-').replace(/-+/g, '-').toLowerCase() || 'file';
-    const ext = (parsed.ext || '').toLowerCase();
-    const ts = Date.now();
-    const rnd = Math.random().toString(36).slice(2, 8);
-    return `${base}-${ts}-${rnd}${ext}`;
+  const parsed = path.parse(String(originalName || "file"));
+  const base =
+    sanitize(parsed.name)
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9-_]+/g, "-")
+      .replace(/-+/g, "-")
+      .toLowerCase() || "file";
+  const ext = (parsed.ext || "").toLowerCase();
+  const ts = Date.now();
+  const rnd = Math.random().toString(36).slice(2, 8);
+  return `${base}-${ts}-${rnd}${ext}`;
 }
 
-function fileFilter(_req, file, cb) {
-    if (!ALLOWED_MIME.has(file.mimetype)) {
-        return cb(new Error('Unsupported file type'));
-    }
-    cb(null, true);
+/** Convert absolute fs path -> URL public tương đối (bắt đầu bằng /) */
+function publicUrlFromAbs(absPath) {
+  const rel = path.relative(PUBLIC_DIR, absPath).split(path.sep).join("/");
+  return "/" + rel.replace(/^\/+/, "");
 }
 
-// ====== static storage (không theo folder) – optional ======
-const storage = multer.diskStorage({
-    destination: function(_req, _file, cb) {
-        cb(null, UPLOADS_DIR);
-    },
-    filename: function(_req, file, cb) {
-        cb(null, safeFileName(file.originalname));
-    },
-});
-
-const upload = multer({
-    storage,
-    limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
-    fileFilter,
-});
-
-// ====== dynamic storage theo folder_slug ======
-// NOTE: Để đồng bộ & an toàn, phía client nên gửi `?folder_slug=ten-thu-muc`.
-// Nếu bạn chỉ có `folder_id`, hãy viết middleware trước multer để tra DB và gán `req._folderSlug = '...'`.
-function storageDynamic() {
-    return multer.diskStorage({
-        destination: function(req, _file, cb) {
-            // ưu tiên slug từ query hoặc body
-            const slug =
-                (req.query && req.query.folder_slug ? String(req.query.folder_slug) : null) ||
-                (req.body && req.body.folder_slug ? String(req.body.folder_slug) : null) ||
-                (req._folderSlug ? String(req._folderSlug) : null);
-
-            let dest;
-            try {
-                if (slug) {
-                    dest = folderAbsPath(slug); // đã chống path traversal trong helpers/paths
-                } else {
-                    // fallback: uploads root
-                    dest = UPLOADS_DIR;
-                }
-                ensureDir(dest);
-                cb(null, dest);
-            } catch (err) {
-                cb(err);
-            }
-        },
-        filename: function(_req, file, cb) {
-            cb(null, safeFileName(file.originalname));
-        },
-    });
+/** Chuẩn hoá đường dẫn public tương đối */
+function normalizePublicRelative(rel) {
+  let s = String(rel || "").replace(/\\/g, "/");
+  if (s && s.charAt(0) !== "/") s = "/" + s;
+  return s;
 }
 
-const uploadDynamic = multer({
-    storage: storageDynamic(),
-    limits: { fileSize: 20 * 1024 * 1024 },
-    fileFilter,
-});
+/** Lấy URL public từ object media (ưu tiên file_url) */
+function pickRelativeFromMedia(media) {
+  if (media?.file_url) return String(media.file_url);
+  if (media?.url) return String(media.url);
+  if (media?.stored_name)
+    return normalizePublicRelative(`/uploads/${String(media.stored_name)}`);
+  return "";
+}
 
-// ====== exports ======
 module.exports = {
-    upload, // dùng cho /media/upload(s) nếu không cần folder
-    uploadDynamic, // dùng cho /media/upload(s)?folder_slug=...
-    UPLOADS_DIR,
-    PUBLIC_DIR,
+  sanitizeSlug,
+  safeFileName,
+  folderAbsPath,
+  publicUrlFromAbs,
+  normalizePublicRelative,
+  pickRelativeFromMedia,
 };

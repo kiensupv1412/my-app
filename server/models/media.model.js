@@ -12,8 +12,6 @@ const Media = sequelize.define(
       primaryKey: true,
       autoIncrement: true,
     },
-    site: { type: DataTypes.INTEGER, defaultValue: 0 },
-    user_id: { type: DataTypes.INTEGER, defaultValue: 0 },
     folder_id: { type: DataTypes.INTEGER, allowNull: true },
     is_background: {
       type: DataTypes.BOOLEAN,
@@ -48,7 +46,7 @@ const Media = sequelize.define(
     tableName: "media_storage",
     timestamps: false,
     underscored: true,
-  },
+  }
 );
 
 module.exports = Media;

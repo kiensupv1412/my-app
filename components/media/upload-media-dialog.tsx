@@ -20,30 +20,18 @@ import {
 
 import { apiUploadMedia } from '@/lib/api';
 import { Checkbox } from '../ui/checkbox';
+import { TinyProgress } from '../ui/tinyProgress';
+import { useProgress } from '@/hooks/use-progress';
+import { MediaItem } from '@/types';
 
-type PickedFile = { file: File; url: string; error?: string };
-
-type MediaItem = {
-    id: number;
-    site?: number;
-    is_background?: boolean | null;
-    user_id?: number;
-    media_type?: string;
-    uuid?: string;
-    name: string;
-    file_name: string;
-    file_url: string;
-    file_size?: number | null;
-    mime: string;
-    alt?: string | null;
-    caption?: string | null;
-    thumbnail?: string | null;
-    width?: number | null;
-    height?: number | null;
-    created_at?: any;
-    updated_at?: any;
+type PickedFile = {
+    file: File;
+    url: string;
+    error?: string;
+    loaded?: number;         // bytes
+    total?: number;          // bytes
+    status?: 'idle' | 'uploading' | 'done' | 'error';
 };
-
 const ALLOWED = [
     'image/png',
     'image/jpeg',
@@ -73,6 +61,11 @@ export function UploadMediaDialog({
     const [isBackground, setIsBackground] = React.useState(false);
     const { success, error } = useAppToast();
 
+    const { loaded, total, fromEvent, reset } = useProgress();
+    const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
+    const [itemIndex, setItemIndex] = React.useState(0);
+    const [doneSet, setDoneSet] = React.useState<Set<number>>(new Set());
+
     function onPick(e: React.ChangeEvent<HTMLInputElement>) {
         const target = e.target;
         if (!target || !target.files) return;
@@ -95,7 +88,14 @@ export function UploadMediaDialog({
                         ? 'Định dạng không hỗ trợ'
                         : 'Kích thước vượt 20MB';
 
-                next.push({ file: f, url: URL.createObjectURL(f), error: err });
+                next.push({
+                    file: f,
+                    url: URL.createObjectURL(f),
+                    error: err,
+                    loaded: 0,
+                    total: 0,
+                    status: 'idle'
+                });
             }
 
             // File mới luôn đứng trước
@@ -122,20 +122,68 @@ export function UploadMediaDialog({
     }, []);
 
     async function onUpload() {
-        if (!files.length) return error('Không có file');
-        const valid = files.filter(f => !f.error);
-        if (!valid.length) return error('Không có file hợp lệ');
+        const validIdx = files.map((f, i) => (!f.error ? i : -1)).filter(i => i >= 0);
+        if (!validIdx.length) return error('Không có file hợp lệ');
 
         setUploading(true);
+
+        // mark tất cả valid -> uploading
+        setFiles(prev => prev.map((f, i) =>
+            validIdx.includes(i) ? { ...f, status: 'uploading', loaded: 0, total: 0 } : f
+        ));
+
         try {
-            const uploaded = await apiUploadMedia(valid.map(v => v.file), {
-                folder_id: currentFolderId ?? undefined,
-                folder_slug: currentFolderSlug ?? undefined,
-                is_background: isBackground,
-            });
-            onUploaded?.(uploaded);
-            success('Upload thành công');
-            setOpen(false); setFiles([]);
+            const promises = validIdx.map((i) =>
+                apiUploadMedia([files[i].file], {
+                    folder_id: currentFolderId ?? undefined,
+                    folder_slug: currentFolderSlug ?? undefined,
+                    is_background: isBackground,
+                    onProgress: (_pct, evt) => {
+                        if (evt && evt.lengthComputable && evt.total > 0) {
+                            const { loaded, total } = evt;
+                            setFiles(curr => {
+                                const next = [...curr];
+                                const it = next[i]; if (!it) return curr;
+                                next[i] = {
+                                    ...it,
+                                    loaded: Math.max(it.loaded || 0, loaded),
+                                    total: Math.max(it.total || 0, total)
+                                };
+                                return next;
+                            });
+                        }
+                    }
+                })
+                    .then((res) => {
+                        setFiles(curr => {
+                            const next = [...curr]; const it = next[i]; if (!it) return curr;
+                            // ép 100%
+                            next[i] = { ...it, loaded: it.total || it.loaded || 0, status: 'done' };
+                            return next;
+                        });
+                        return res;
+                    })
+                    .catch((e) => {
+                        setFiles(curr => {
+                            const next = [...curr]; const it = next[i]; if (!it) return curr;
+                            next[i] = { ...it, status: 'error', error: e?.message || 'Upload failed' };
+                            return next;
+                        });
+                    })
+            );
+
+            const results = await Promise.allSettled(promises);
+
+            const okItems = results
+                .filter(r => r.status === 'fulfilled')
+                .flatMap((r: any) => r.value || []);
+            if (okItems.length) onUploaded?.(okItems);
+
+            // XONG HẾT -> đóng modal + dọn preview
+            success('Upload hoàn tất');
+            setOpen(false);
+            files.forEach(f => f.url && URL.revokeObjectURL(f.url));
+            setFiles([]);
         } catch (e: any) {
             error('Upload thất bại', e?.message);
         } finally {
@@ -151,6 +199,9 @@ export function UploadMediaDialog({
         }
     }
 
+    const totalValid = React.useMemo(() => files.filter(f => !f.error).length, [files]);
+    const doneCount = React.useMemo(() => files.filter(f => !f.error && f.status === 'done').length, [files]);
+
     return (
         <Dialog
             open={open}
@@ -159,6 +210,8 @@ export function UploadMediaDialog({
                 if (!v) {
                     files.forEach((f) => f.url && URL.revokeObjectURL(f.url));
                     setFiles([]);
+                    setDoneSet(new Set());
+                    reset();
                 }
             }}
         >
@@ -171,7 +224,7 @@ export function UploadMediaDialog({
                 )}
             </DialogTrigger>
 
-            <DialogContent className="w-[min(92vw,720px)] sm:w-[min(92vw,720px)] max-h-[85vh] p-0 overflow-hidden">
+            <DialogContent className="max-w-screen-lg max-h-[85vh] p-0 overflow-hidden">
                 {/* Header */}
                 <div className="border-b p-6">
                     <DialogHeader>
@@ -201,60 +254,81 @@ export function UploadMediaDialog({
                             onWheel={onWheelToHorizontal}
                         >
                             <div className="flex w-max flex-nowrap gap-3 snap-x snap-mandatory">
-                                {files.map((f, idx) => (
-                                    <div
-                                        key={idx}
-                                        className="snap-start w-56 flex-none relative overflow-hidden rounded-md border p-2 bg-background"
-                                    >
-                                        {String(f.file.type).startsWith('image/') ? (
-                                            <img
-                                                src={f.url}
-                                                alt={f.file.name}
-                                                className="h-28 w-full rounded object-cover"
-                                                onError={(e) => {
-                                                    (e.currentTarget as HTMLImageElement).src = '/thumb-default.jpeg';
-                                                }}
-                                            />
-                                        ) : (
-                                            <video className="h-28 w-full rounded object-cover" src={f.url} muted />
-                                        )}
+                                {files.map((f, idx) => {
+                                    const isImage = String(f.file.type).startsWith('image/');
+                                    const pct = f.total && f.total > 0 ? Math.round(((f.loaded || 0) / f.total) * 100) : 0;
+                                    const isUploadingItem = f.status === 'uploading';
+                                    const isDone = f.status === 'done';
+                                    const isError = f.status === 'error';
 
-                                        <div className="mt-2 truncate text-xs">{f.file.name}</div>
-                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>{(f.file.size / 1024).toFixed(1)} KB</span>
-                                            <span>{f.file.type}</span>
+                                    const mediaCls = [
+                                        'h-28 w-full rounded object-cover transition-opacity',
+                                        isUploadingItem ? 'opacity-60' : 'opacity-100'
+                                    ].join(' ');
+
+                                    return (
+                                        <div key={idx} className="snap-start w-56 flex-none relative overflow-hidden rounded-md border p-2 bg-background">
+                                            {isImage
+                                                ? <img src={f.url} alt={f.file.name} className={mediaCls}
+                                                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/thumb-default.jpeg'; }} />
+                                                : <video className={mediaCls} src={f.url} muted />
+                                            }
+
+                                            {isUploadingItem && (
+                                                <div className="absolute inset-0 grid place-items-center bg-black/20">
+                                                    <div className="relative">
+                                                        <TinyProgress value={pct} />
+                                                        <span className="absolute inset-0 grid place-items-center text-xs font-medium text-white">
+                                                            {pct}%
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="mt-2 truncate text-xs">{f.file.name}</div>
+                                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                                <span>{(f.file.size / 1024).toFixed(1)} KB</span>
+                                                <span>{f.file.type}</span>
+                                            </div>
+
+                                            {isError && <div className="mt-1 text-xs text-red-600">{f.error}</div>}
+
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className={`absolute right-1 top-1 h-7 px-2 text-xs ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+                                                onClick={() => removeAt(idx)}
+                                                disabled={uploading}   // ✅ tắt ALL remove khi đang upload
+                                            >
+                                                Remove
+                                            </Button>
+
+                                            {isDone && (
+                                                <span className="absolute left-1 top-1 rounded bg-emerald-600/80 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                                                    Done
+                                                </span>
+                                            )}
                                         </div>
+                                    );
+                                })}
 
-                                        {f.error ? <div className="mt-1 text-xs text-red-600">{f.error}</div> : null}
 
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="absolute right-1 top-1 h-7 px-2 text-xs"
-                                            onClick={() => removeAt(idx)}
-                                            disabled={uploading}
-                                        >
-                                            Remove
-                                        </Button>
-                                    </div>
-                                ))}
                             </div>
                         </div>
                     ) : null}
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between mt-auto border-t py-2">
-                    <div className="ps-6 text-xs text-muted-foreground">Đã chọn: {files.length} file</div>
-                    <span className="ml-2 text-sm">is_background</span>
-                    <Checkbox
-                        checked={isBackground}
-                        onCheckedChange={(val) => setIsBackground(!!val)}
-                    />
-                    <div className="border-t p-6 flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setOpen(false)} disabled={uploading}>
-                            Cancel
-                        </Button>
+                <div className="flex items-center gap-3 mt-auto border-t py-2 px-6">
+                    <div className="text-sm tabular-nums text-slate-600">
+                        {uploading ? `${doneCount}/${totalValid}` : `0/${totalValid}`}
+                    </div>
+
+                    <div className="ml-auto flex items-center gap-3">
+                        <div className="text-xs text-muted-foreground">Đã chọn: {files.length} file</div>
+                        <span className="text-sm">is_background</span>
+                        <Checkbox checked={isBackground} onCheckedChange={(val) => setIsBackground(!!val)} disabled={uploading} />
+                        <Button variant="outline" onClick={() => setOpen(false)} disabled={uploading}>Cancel</Button>
                         <Button onClick={onUpload} disabled={uploading || files.length === 0}>
                             {uploading ? 'Uploading…' : 'Upload'}
                         </Button>

@@ -149,3 +149,15 @@ class ConflictError extends GhostError {
     );
   }
 }
+
+module.exports = {
+  GhostError,
+  InternalServerError,
+  BadRequestError,
+  ValidationError,
+  UnauthorizedError,
+  NoPermissionError,
+  NotFoundError,
+  TooManyRequestsError,
+  ConflictError,
+};

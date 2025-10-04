@@ -52,7 +52,7 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
             category_id: String(article?.category_id ?? ''),
             status: article?.status ?? 'draft',
         }),
-        [article]
+        [article, categories]
     );
     const [thumb, setThumb] = useState<ThumbState>(() => deriveThumb(article));
     const [form, setForm] = useState(initialForm);
@@ -150,11 +150,11 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
             if (isCreate) {
                 await createArticle(payload);
                 success('Đã tạo bài viết');
+                router.push('/news');
             } else {
                 await updateArticle(String(article?.id), payload);
                 success('Đã cập nhật bài viết');
             }
-            router.push('/news');
         } catch (e: any) {
             error(e?.message ?? 'Lưu thất bại');
         } finally {
@@ -273,13 +273,19 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
 
                         {/* Actions */}
                         <div className="flex justify-end gap-2 pt-1">
-                            <Button type="button" variant="outline" onClick={() => handlePreview(contentEditor)}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="min-w-[9ch] whitespace-nowrap h-9 inline-flex items-center justify-center"
+                                onClick={() => handlePreview(contentEditor)}
+                            >
                                 Xem Trước
                             </Button>
 
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="min-w-[9ch] whitespace-nowrap h-9 inline-flex items-center justify-center"
                                 onClick={() => {
                                     setForm((f) => ({ ...f, status: 'draft' }));
                                     handleSubmit();
@@ -288,10 +294,16 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                                 Lưu nháp
                             </Button>
 
-                            <Button type="submit" disabled={!form.title || !form.category_id || isSubmitting}>
+                            <Button
+                                size="md"
+                                type="submit"
+                                disabled={!form.title || !form.category_id || isSubmitting}
+                                className="min-w-[10ch] whitespace-nowrap h-9 inline-flex items-center justify-center"
+                            >
                                 {isSubmitting ? 'Đang lưu…' : mode === 'create' ? 'Tạo bài' : 'Cập nhật'}
                             </Button>
                         </div>
+
                     </form>
                 </div>
             </div>

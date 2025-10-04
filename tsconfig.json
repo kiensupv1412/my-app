@@ -39,5 +39,5 @@
     "components/editor/plate-editor.tsx",
     ".vscode/page.tsx"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["server", "server/**", "node_modules"]
 }

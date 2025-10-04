@@ -14,12 +14,10 @@ function parsePagination(q, defaultLimit = 15, maxLimit = 100) {
 }
 // build meta.pagination kiểu Ghost
 function buildMeta({ page, limit, total }) {
-  const pages = Math.max(Math.ceil(total / limit), 1); // tổng số trang
+  const pages = Math.max(Math.ceil(total / limit), 1);
   const prev = page > 1 ? page - 1 : null;
   const next = page < pages ? page + 1 : null;
-  return { page, limit, pages, total, prev, next };
+  return { limit, pages, total, prev, next };
 }
-
-module.exports = { parsePagination, buildMeta };
 
 module.exports = { parsePagination, buildMeta };

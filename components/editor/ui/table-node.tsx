@@ -92,7 +92,7 @@ import {
   ToolbarButton,
   ToolbarGroup,
   ToolbarMenuGroup,
-} from '@/components/ui/toolbar';
+} from '@/components/editor/ui/toolbar';
 export const TableElement = withHOC(
   TableProvider,
   function TableElement({

@@ -4,6 +4,9 @@ import { createUploadthing } from 'uploadthing/next';
 
 const f = createUploadthing();
 
+/*
+ * path: lib / uploadthing.ts
+*/
 export const ourFileRouter = {
   editorUploader: f(['image', 'text', 'blob', 'pdf', 'video', 'audio'])
     .middleware(() => {

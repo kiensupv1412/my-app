@@ -40,7 +40,9 @@ function toSize(n?: number | null) {
     if (v < 1024 * 1024 * 1024) return (v / 1024 / 1024).toFixed(1) + ' MB';
     return (v / 1024 / 1024 / 1024).toFixed(1) + ' GB';
 }
-
+/*
+ * path: components/media/media-detail.tsx
+ */
 export function MediaDetail({ item, onDelete }: Props) {
     const isMobile = useIsMobile();
     const src = item.thumbnail ? item.thumbnail : item.file_url;
@@ -66,17 +68,16 @@ export function MediaDetail({ item, onDelete }: Props) {
 
     return (
         <Drawer direction={isMobile ? 'bottom' : 'right'}>
-            {/* Ô ảnh trong GRID */}
             <DrawerTrigger asChild>
-                <button
-                    className="group relative block overflow-hidden rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                <div
+                    className="group relative block bg-background"
                     title={item.name}
                 >
-                    <div className="aspect-square w-full overflow-hidden">
+                    <div className="aspect-square w-full">
                         <img
                             src={src}
                             alt={item.alt ? item.alt : item.name}
-                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            className="h-full w-full rounded-sm object-cover transition-transform duration-300 group-hover:scale-105"
                             onError={(e) => {
                                 const el = e.currentTarget as HTMLImageElement;
                                 el.src = '/thumb-default.jpeg';
@@ -90,19 +91,15 @@ export function MediaDetail({ item, onDelete }: Props) {
                             <span>{toSize(item.file_size)}</span>
                         </div>
                     </div>
-                </button>
+                </div>
             </DrawerTrigger>
-
-            {/* Drawer hiển thị ảnh lớn + metadata */}
             <DrawerContent className={isMobile ? 'max-h-[85vh]' : 'max-w-[720px]'}>
                 <DrawerHeader className="gap-1">
                     <DrawerTitle className="truncate">{item.name}</DrawerTitle>
                     <DrawerDescription>Preview &amp; thông tin tập tin</DrawerDescription>
                 </DrawerHeader>
-
                 <div className="flex flex-col gap-4 overflow-y-auto px-4 pb-4">
-                    {/* Ảnh lớn */}
-                    <div className="rounded-lg border">
+                    <div className="">
                         <div className="bg-muted/30">
                             <img
                                 src={item.file_url}
@@ -111,10 +108,7 @@ export function MediaDetail({ item, onDelete }: Props) {
                             />
                         </div>
                     </div>
-
                     <Separator />
-
-                    {/* Thông tin */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         <div className="space-y-1">
                             <div className="text-muted-foreground">Tên hiển thị</div>

@@ -19,7 +19,7 @@ import {
 import { BaseEditorKit } from '@/components/editor/editor-base-kit';
 
 import { EditorStatic } from './editor-static';
-import { ToolbarButton } from '@/components/ui/toolbar';
+import { ToolbarButton } from '@/components/editor/ui/toolbar';
 
 const siteUrl = 'https://platejs.org';
 

@@ -1,5 +1,6 @@
 // lib/fetcher.ts
-export const fetcher = (url: string) => fetch(url).then(r => {
-    if (!r.ok) throw new Error(`${r.status}`);
+export const fetcher = async (url: string) => {
+    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
     return r.json();
-});
+};

@@ -20,9 +20,9 @@ export function ContentEditor({ mode, article, descEditor, contentEditor }: { mo
     }, [initialDescription]);
 
     return (
-        <div className="w-full flex flex-col gap-4 border-r">
+        <div className="w-full flex flex-col gap-4 border-r min-h-0 grow overflow-y-auto">
             <Plate editor={descEditor}>
-                <EditorContainer className="h-auto">
+                <EditorContainer className="">
                     <PlateEditor id={"description"} />
                 </EditorContainer>
             </Plate>

@@ -11,16 +11,15 @@ import { Article, ArticleUpdatePayload, Categories, MediaItem, Mode, STATUS } fr
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppToast } from "../providers/app-toast";
 import { handlePreview, plateToHtml } from "@/lib/editorManeger";
-import { createArticleOptimistic, updateArticleOptimistic } from "@/hooks/use-articles";
+import { createArticle, updateArticle } from "@/hooks/use-articles";
 import { useRouter } from 'next/navigation'
 import PickThumb from "./PickThumb";
 import { normalizeSlug, safeStringify } from "@/lib/utils";
 import { z } from 'zod';
-import { apiUpload } from "@/lib/media.api";
+import { apiUploadMedia } from "@/lib/api";
 
 const FormSchema = z.object({
     title: z.string().trim().min(1, 'Tiêu đề bắt buộc').max(160),
-    slug: z.string().trim().min(1, 'Slug bắt buộc').max(160).regex(/^[a-z0-9-]+$/, 'Slug chỉ chứa [a-z0-9-]'),
     category_id: z.string().min(1, 'Chọn chuyên mục'),
     status: z.enum(STATUS, { errorMap: () => ({ message: 'Trạng thái không hợp lệ' }) }),
 });
@@ -33,113 +32,92 @@ type ThumbState = {
 export function MetaPanel({ mode, article, categories, descEditor, contentEditor }:
     { mode: Mode, article: Article | null, categories: Categories, descEditor: any, contentEditor: any }) {
 
-    const router = useRouter()
-    const { success, error } = useAppToast()
+    const router = useRouter();
+    const { success, error } = useAppToast();
 
-    const [thumb, setThumb] = useState<ThumbState>({
-        id: article?.thumb?.id ?? null,
-        url: article?.thumb?.file_url ?? '/thumb-1920x1080.png',
+    const DEFAULT_THUMB_URL = '/thumb-1920x1080.png';
+
+    // ---- helpers --------------------------------------------------------------
+    const deriveThumb = (a: Article | null): ThumbState => ({
+        id: a?.thumb?.id ?? null,
+        url: a?.thumb?.file_url ?? DEFAULT_THUMB_URL,
         blob: null,
-        is_background: article?.thumb?.is_background ?? false,
+        is_background: a?.thumb?.is_background ?? true,
     });
 
-    const [genBusy, setGenBusy] = useState(false);
-    const [tempBlob, setTempBlob] = useState<Blob | null>(null);
-
-    const initialForm = useMemo(() => ({
-        title: article?.title ?? '',
-        slug: article?.slug ?? '',
-        category_id: String(article?.category_id ?? ''),
-        status: article?.status ?? 'draft',
-    }), [article]);
-    useEffect(() => {
-        if (article?.thumb) {
-            setThumb({
-                id: article.thumb.id,
-                url: article.thumb.file_url,
-                blob: null,
-                is_background: article.thumb.is_background ?? false,
-            });
-        } else {
-            setThumb({
-                id: null,
-                url: '/thumb-1920x1080.png',
-                blob: null,
-                is_background: true,
-            });
-        }
-    }, [article?.thumb?.id]);
-    const [form, setForm] = useState(initialForm);
-    const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
-    const isSubmittingRef = useRef(false);
-
-    useEffect(() => {
-        setForm({
+    const initialForm = useMemo(
+        () => ({
             title: article?.title ?? '',
             slug: article?.slug ?? '',
             category_id: String(article?.category_id ?? ''),
             status: article?.status ?? 'draft',
-        });
-        setErrors({});
-    }, [article, categories])
+        }),
+        [article]
+    );
+    const [thumb, setThumb] = useState<ThumbState>(() => deriveThumb(article));
+    const [form, setForm] = useState(initialForm);
+    const [errors, setErrors] = useState<Partial<Record<keyof typeof initialForm, string>>>({});
+    const [genBusy, setGenBusy] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+
 
     useEffect(() => {
-        if (!form.title) return;
-        const auto = normalizeSlug(form.title);
-        if (!form.slug || form.slug === normalizeSlug(article?.title ?? '')) {
-            setForm(p => ({ ...p, slug: auto }));
-        }
-    }, [form.title]);
-
+        setForm(initialForm);
+        setThumb(deriveThumb(article));
+        setErrors({});
+    }, [initialForm, article]);
     const handleChange = (k: keyof typeof form, v: string) => {
-        setForm(prev => ({ ...prev, [k]: v }));
-        setErrors(prev => ({ ...prev, [k]: undefined }));
+        setForm((prev) => ({ ...prev, [k]: v }));
+        setErrors((prev) => ({ ...prev, [k]: undefined }));
     };
 
-    const handleConfirmThumb = (media: MediaItem | undefined) => {
+    const handleConfirmThumb = (media?: MediaItem) => {
         setThumb({
             id: media?.id ?? null,
-            url: media?.file_url ?? '/thumb-1920x1080.png',
+            url: media?.file_url ?? DEFAULT_THUMB_URL,
             blob: null,
-            is_background: media?.is_background ?? false,
+            is_background: media?.is_background ?? true,
         });
     };
+    const ensureThumbId = async (): Promise<number | undefined> => {
+        if (thumb.id != null) return thumb.id;
+        if (!thumb.blob) return undefined;
 
+        try {
+            const file = new File([thumb.blob], `og-${Date.now()}.png`, { type: 'image/png' });
+            const uploaded = await apiUploadMedia([file], { folder_id: null });
+            const item = uploaded?.[0];
+            if (item && Number.isFinite(item.id)) {
+                setThumb((t) => ({ ...t, id: item.id, url: item.file_url, blob: null }));
+                return item.id;
+            }
+            throw new Error('Upload OK nhưng không nhận được id media hợp lệ');
+        } catch (err) {
+            console.error('Upload thumbnail thất bại', err);
+            return undefined;
+        }
+    };
     async function buildPayload(): Promise<ArticleUpdatePayload> {
         const descJson = safeStringify(descEditor?.children ?? []);
         const contentJson = safeStringify(contentEditor?.children ?? []);
-        let descHtml: string | null = null;
-        let contentHtml: string | null = null;
-        try {
-            descHtml = await plateToHtml(descEditor);
-        } catch {
-            descHtml = null;
-        }
-        try {
-            contentHtml = await plateToHtml(contentEditor);
-        } catch {
-            contentHtml = null;
-        }
-        let finalThumbId = thumb.id ?? undefined;
-        if (thumb.id === null && thumb.blob) {
-            try {
-                const file = new File([thumb.blob], `og-${Date.now()}.png`, { type: 'image/png' });
-                const uploaded = await apiUpload([file], { folder_id: null });
-                const item = uploaded?.[0];
-                if (item && Number.isFinite(item.id)) {
-                    finalThumbId = item.id;
-                    // optional: cập nhật lại state thumb sang server URL
-                    setThumb({ id: item.id, url: item.file_url, blob: null });
-                } else {
-                    throw new Error('Upload OK nhưng không nhận được id media hợp lệ');
-                }
-            } catch (err) {
-                console.error('Upload thumbnail thất bại', err);
-            }
-        }
+
+        // render HTML song song, không vỡ nếu 1 cái fail
+        const [descRes, contentRes] = await Promise.allSettled([
+            plateToHtml(descEditor),
+            plateToHtml(contentEditor),
+        ]);
+        const descHtml = descRes.status === 'fulfilled' ? descRes.value : null;
+        const contentHtml = contentRes.status === 'fulfilled' ? contentRes.value : null;
+
+        const finalThumbId = await ensureThumbId();
+
+        // normalize slug 1 lần cuối để chắc chắn
+        const normalizedSlug = normalizeSlug(form.slug || form.title);
+
         return {
             title: form.title.trim(),
-            slug: normalizeSlug(form.slug),
+            slug: normalizedSlug,
             status: form.status,
             category_id: Number(form.category_id),
             thumb_id: finalThumbId,
@@ -150,52 +128,44 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
         };
     }
 
-
     async function handleSubmit() {
-        if (isSubmittingRef.current) return;
+        if (isSubmitting) return;
+
         const parsed = FormSchema.safeParse(form);
         if (!parsed.success) {
-            const e: any = {};
+            const fieldErrors: any = {};
             for (const issue of parsed.error.issues) {
                 const k = issue.path[0] as keyof typeof form;
-                e[k] = issue.message;
+                fieldErrors[k] = issue.message;
             }
-            setErrors(e);
+            setErrors(fieldErrors);
             error('Vui lòng kiểm tra lại các trường dữ liệu.');
             return;
         }
-
-        isSubmittingRef.current = true;
-
+        setIsSubmitting(true);
         try {
-
             const payload = await buildPayload();
+            const isCreate = mode === 'create';
 
-            if (mode == "create") {
-                await createArticleOptimistic(payload);
+            if (isCreate) {
+                await createArticle(payload);
                 success('Đã tạo bài viết');
-                router.push('/news');
             } else {
-                await updateArticleOptimistic(String(article?.id), payload);
+                await updateArticle(String(article?.id), payload);
                 success('Đã cập nhật bài viết');
-                router.push('/news');
             }
+            router.push('/news');
         } catch (e: any) {
             error(e?.message ?? 'Lưu thất bại');
         } finally {
-            isSubmittingRef.current = false;
+            setIsSubmitting(false);
         }
     }
 
     async function handleGenerateTitle() {
-        if (!form.title?.trim()) {
-            error('Tiêu đề đang trống');
-            return;
-        }
-        if (!thumb.is_background) {
-            error('Không phải là ảnh nền');
-            return;
-        }
+        if (!form.title?.trim()) return error('Tiêu đề đang trống');
+        if (!thumb.is_background) return error('Không phải là ảnh nền');
+
         try {
             setGenBusy(true);
             const blob = await generateImageOnClient({
@@ -203,9 +173,8 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                 title: form.title.trim(),
                 opts: { padding: 72, fontSize: 72, brandText: 'tuvibattu.vn', addGradient: true },
             });
-
             const url = URL.createObjectURL(blob);
-            setThumb({ id: null, url, blob }); // reset id vì đây là ảnh local
+            setThumb({ id: null, url, blob, is_background: true });
             success('Đã tạo ảnh preview từ tiêu đề');
         } catch (e: any) {
             error(e?.message ?? 'Generate thất bại');
@@ -217,35 +186,16 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
     return (
         <div className='w-[500px]'>
             <div>
-                <div className="gap-1">
-                    <div>
-                        Showing total visitors for the last 6 months
-                    </div>
-                </div>
                 <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
                     <PickThumb
                         thumb={thumb.id ? { id: thumb.id, file_url: thumb.url } : null}
                         onConfirmAction={handleConfirmThumb}
-                        fallbackUrl="/thumb-1920x1080.png"
+                        fallbackUrl={DEFAULT_THUMB_URL}
                         overrideTriggerUrl={thumb.url}
                     />
-                    <Button
-                        type="button"
-                        onClick={handleGenerateTitle}
-                        disabled={genBusy}
-                    >
+                    <Button type="button" onClick={handleGenerateTitle} disabled={genBusy}>
                         {genBusy ? 'Đang tạo…' : 'GenerateTitle'}
-                    </Button>                    <Separator />
-                    <div className="grid gap-2">
-                        <div className="flex gap-2 leading-none font-medium">
-                            Trending up by 5.2% this month
-                            <IconTrendingUp className="size-4" />
-                        </div>
-                        <div className="text-muted-foreground">
-                            Showing total visitors for the last 6 months. This is just some random text to test the layout.
-                            It spans multiple lines and should wrap around.
-                        </div>
-                    </div>
+                    </Button>
                     <Separator />
                     <form
                         className="flex flex-col gap-4"
@@ -254,49 +204,58 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                             handleSubmit();
                         }}
                     >
+                        {/* Title */}
                         <div className="flex flex-col gap-3">
                             <Label htmlFor="header">Title</Label>
                             <Input
                                 id="header"
-                                value={form?.title}
+                                value={form.title}
                                 onChange={(e) => handleChange('title', e.target.value)}
                             />
-                            {errors.title && <p className="text-xs text-red-600 mt-1">{errors.title}</p>}
+                            {errors.title && <p className="mt-1 text-xs text-red-600">{errors.title}</p>}
                         </div>
 
+                        {/* Slug */}
                         <div className="flex flex-col gap-3">
                             <Label htmlFor="slug">Slug</Label>
                             <Input
                                 id="slug"
-                                value={form?.slug}
+                                value={form.slug}
                                 onChange={(e) => handleChange('slug', e.target.value)}
+                                onBlur={() =>
+                                    setForm((f) => ({ ...f, slug: normalizeSlug(f.slug || f.title) }))
+                                }
                             />
-                            {errors.slug && <p className="text-xs text-red-600 mt-1">{errors.slug}</p>}
+                            {errors.slug && <p className="mt-1 text-xs text-red-600">{errors.slug}</p>}
                         </div>
 
+                        {/* Category + Status */}
                         <div className="flex flex-col gap-3 md:flex-row">
                             <div className="flex flex-1 flex-col gap-3">
                                 <Label>Category</Label>
-                                <Select value={String(form?.category_id)}
-                                    onValueChange={(v) => handleChange('category_id', v)}>
+                                <Select
+                                    value={String(form.category_id)}
+                                    onValueChange={(v) => handleChange('category_id', v)}
+                                >
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Select a category" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {categories.map((c) => (
+                                        {categories && categories.map((c) => (
                                             <SelectItem key={c.id} value={String(c.id)}>
                                                 {c.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                {errors.category_id && <p className="text-xs text-red-600 mt-1">{errors.category_id}</p>}
+                                {errors.category_id && (
+                                    <p className="mt-1 text-xs text-red-600">{errors.category_id}</p>
+                                )}
                             </div>
 
                             <div className="flex flex-1 flex-col gap-3">
                                 <Label>Status</Label>
-                                <Select value={form?.status}
-                                    onValueChange={(v) => handleChange('status', v)}>
+                                <Select value={form.status} onValueChange={(v) => handleChange('status', v)}>
                                     <SelectTrigger className="w-full">
                                         <SelectValue placeholder="Select a status" />
                                     </SelectTrigger>
@@ -308,36 +267,35 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                {errors.status && <p className="text-xs text-red-600 mt-1">{errors.status}</p>}
+                                {errors.status && <p className="mt-1 text-xs text-red-600">{errors.status}</p>}
                             </div>
                         </div>
+
+                        {/* Actions */}
                         <div className="flex justify-end gap-2 pt-1">
-                            <div>
-                                <Button type="button" variant="outline"
-                                    onClick={() => { handlePreview(contentEditor) }}>
-                                    Xem Trước
-                                </Button>
-                            </div>
-                            <div>
-                                <Button type="button" variant="outline"
-                                    onClick={
-                                        () => {
-                                            setForm({ ...form, status: "draft" });
-                                            handleSubmit();
-                                        }}>
-                                    Lưu nháp
-                                </Button>
-                            </div>
-                            <Button type="button"
-                                onClick={handleSubmit}
-                                disabled={!form.title || !form.slug || !form.category_id || isSubmittingRef.current}>
-                                {isSubmittingRef.current ? 'Đang lưu…' : (mode === 'create' ? 'Tạo bài' : 'Cập nhật')}
+                            <Button type="button" variant="outline" onClick={() => handlePreview(contentEditor)}>
+                                Xem Trước
+                            </Button>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setForm((f) => ({ ...f, status: 'draft' }));
+                                    handleSubmit();
+                                }}
+                            >
+                                Lưu nháp
+                            </Button>
+
+                            <Button type="submit" disabled={!form.title || !form.category_id || isSubmitting}>
+                                {isSubmitting ? 'Đang lưu…' : mode === 'create' ? 'Tạo bài' : 'Cập nhật'}
                             </Button>
                         </div>
                     </form>
                 </div>
-            </div >
-        </div >
+            </div>
+        </div>
     )
 }
 

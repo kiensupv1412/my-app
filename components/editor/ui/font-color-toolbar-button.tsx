@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
-import { ToolbarButton, ToolbarMenuGroup } from '@/components/ui/toolbar';
+import { ToolbarButton, ToolbarMenuGroup } from '@/components/editor/ui/toolbar';
 
 export function FontColorToolbarButton({
   children,

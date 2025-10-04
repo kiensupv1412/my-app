@@ -1,130 +1,162 @@
+// path: hooks/use-upload-file.ts
 import * as React from 'react';
-
-import type { OurFileRouter } from '@/lib/uploadthing';
-import type {
-  ClientUploadedFileData,
-  UploadFilesOptions,
-} from 'uploadthing/types';
-
-import { generateReactHelpers } from '@uploadthing/react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
-export type UploadedFile<T = unknown> = ClientUploadedFileData<T>;
+// ====== Types giữ giống tên cũ ======
+export type UploadedFile<T = unknown> = {
+    key: string;
+    name: string;
+    size: number;
+    type: string;
+    url: string;         // public URL từ server
+    appUrl?: string;     // optional: nếu bạn muốn giữ tương thích với mock cũ
+    // T có thể dùng để attach metadata riêng
+} & (T extends object ? T : Record<string, never>);
 
-interface UseUploadFileProps
-  extends Pick<
-    UploadFilesOptions<OurFileRouter['editorUploader']>,
+// Bản tối thiểu tương thích chữ ký props cũ
+type UploadFilesOptionsCompat = {
+    headers?: Record<string, string>;
+    onUploadBegin?: (file: File) => void;
+    onUploadProgress?: (args: { progress: number }) => void;
+    skipPolling?: boolean; // không dùng, chỉ để tương thích
+};
+
+// ====== Props giống file cũ + endpoint riêng ======
+interface UseUploadFileProps extends Pick<
+    UploadFilesOptionsCompat,
     'headers' | 'onUploadBegin' | 'onUploadProgress' | 'skipPolling'
-  > {
-  onUploadComplete?: (file: UploadedFile) => void;
-  onUploadError?: (error: unknown) => void;
+> {
+    endpoint?: string; // <<<< thêm: mặc định '/upload_media'
+    folder_id?: number | string | null;
+    onUploadComplete?: (file: UploadedFile) => void;
+    onUploadError?: (error: unknown) => void;
 }
 
 export function useUploadFile({
-  onUploadComplete,
-  onUploadError,
-  ...props
+    endpoint = 'http://localhost:4000/upload_media',
+    folder_id,
+    onUploadComplete,
+    onUploadError,
+    ...props
 }: UseUploadFileProps = {}) {
-  const [uploadedFile, setUploadedFile] = React.useState<UploadedFile>();
-  const [uploadingFile, setUploadingFile] = React.useState<File>();
-  const [progress, setProgress] = React.useState<number>(0);
-  const [isUploading, setIsUploading] = React.useState(false);
+    const [uploadedFile, setUploadedFile] = React.useState<UploadedFile>();
+    const [uploadingFile, setUploadingFile] = React.useState<File>();
+    const [progress, setProgress] = React.useState<number>(0);
+    const [isUploading, setIsUploading] = React.useState(false);
 
-  async function uploadThing(file: File) {
-    setIsUploading(true);
-    setUploadingFile(file);
+    async function uploadThing(file: File): Promise<UploadedFile> {
+        setIsUploading(true);
+        setUploadingFile(file);
+        props.onUploadBegin?.(file);
 
-    try {
-      const res = await uploadFiles('editorUploader', {
-        ...props,
-        files: [file],
-        onUploadProgress: ({ progress }) => {
-          setProgress(Math.min(progress, 100));
-        },
-      });
+        try {
+            // ---- Upload qua XHR để có upload.onprogress ----
+            const form = new FormData();
+            form.append('file', file);
+            if (folder_id != null) form.append('folder_id', String(folder_id));
 
-      setUploadedFile(res[0]);
+            const uploaded = await new Promise<UploadedFile>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', endpoint);
 
-      onUploadComplete?.(res[0]);
+                if (props.headers) {
+                    for (const [k, v] of Object.entries(props.headers)) {
+                        xhr.setRequestHeader(k, v);
+                    }
+                }
 
-      return uploadedFile;
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
+                xhr.upload.onprogress = (evt) => {
+                    if (evt.lengthComputable) {
+                        const pct = Math.round((evt.loaded / evt.total) * 100);
+                        setProgress(Math.min(pct, 100));
+                        props.onUploadProgress?.({ progress: Math.min(pct, 100) });
+                    }
+                };
 
-      const message =
-        errorMessage.length > 0
-          ? errorMessage
-          : 'Something went wrong, please try again later.';
+                xhr.onreadystatechange = () => {
+                    if (xhr.readyState === 4) {
+                        try {
+                            if (xhr.status >= 200 && xhr.status < 300) {
+                                const json = JSON.parse(xhr.responseText);
+                                // server Express nên trả { data: { key,name,size,type,url } }
+                                resolve(json.data as UploadedFile);
+                            } else {
+                                reject(new Error(xhr.responseText || `HTTP ${xhr.status}`));
+                            }
+                        } catch (e) {
+                            reject(e);
+                        }
+                    }
+                };
 
-      toast.error(message);
+                xhr.onerror = () => reject(new Error('Network error'));
+                xhr.send(form);
+            });
 
-      onUploadError?.(error);
+            setUploadedFile(uploaded);
+            onUploadComplete?.(uploaded);
 
-      // Mock upload for unauthenticated users
-      // toast.info('User not logged in. Mocking upload process.');
-      const mockUploadedFile = {
-        key: 'mock-key-0',
-        appUrl: `https://mock-app-url.com/${file.name}`,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url: URL.createObjectURL(file),
-      } as UploadedFile;
+            // trả về y như res[0] ở UploadThing
+            return uploaded;
+        } catch (error) {
+            const errorMessage = getErrorMessage(error);
+            toast.error(errorMessage.length ? errorMessage : 'Something went wrong, please try again later.');
+            onUploadError?.(error);
 
-      // Simulate upload progress
-      let progress = 0;
+            // --- Mock (y hệt file cũ) để không vỡ flow khi server down ---
+            const mockUploadedFile: UploadedFile = {
+                key: 'mock-key-0',
+                appUrl: `https://mock-app-url.com/${file.name}`,
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                url: URL.createObjectURL(file),
+            };
 
-      const simulateProgress = async () => {
-        while (progress < 100) {
-          await new Promise((resolve) => setTimeout(resolve, 50));
-          progress += 2;
-          setProgress(Math.min(progress, 100));
+            // Simulate upload progress mượt như cũ
+            let pct = 0;
+            while (pct < 100) {
+                await new Promise((r) => setTimeout(r, 50));
+                pct += 2;
+                setProgress(Math.min(pct, 100));
+                props.onUploadProgress?.({ progress: Math.min(pct, 100) });
+            }
+
+            setUploadedFile(mockUploadedFile);
+            return mockUploadedFile;
+        } finally {
+            setProgress(0);
+            setIsUploading(false);
+            setUploadingFile(undefined);
         }
-      };
-
-      await simulateProgress();
-
-      setUploadedFile(mockUploadedFile);
-
-      return mockUploadedFile;
-    } finally {
-      setProgress(0);
-      setIsUploading(false);
-      setUploadingFile(undefined);
     }
-  }
 
-  return {
-    isUploading,
-    progress,
-    uploadedFile,
-    uploadFile: uploadThing,
-    uploadingFile,
-  };
+    // ====== 5 giá trị giống hệt hàm gốc ======
+    return {
+        isUploading,
+        progress,
+        uploadedFile,
+        uploadFile: uploadThing,
+        uploadingFile,
+    };
 }
 
-export const { uploadFiles, useUploadThing } =
-  generateReactHelpers<OurFileRouter>();
-
+// ====== Giữ nguyên helpers và chữ ký lỗi như file cũ ======
 export function getErrorMessage(err: unknown) {
-  const unknownError = 'Something went wrong, please try again later.';
+    const unknownError = 'Something went wrong, please try again later.';
 
-  if (err instanceof z.ZodError) {
-    const errors = err.issues.map((issue) => {
-      return issue.message;
-    });
-
-    return errors.join('\n');
-  } else if (err instanceof Error) {
-    return err.message;
-  } else {
-    return unknownError;
-  }
+    if (err instanceof z.ZodError) {
+        const errors = err.issues.map((issue) => issue.message);
+        return errors.join('\n');
+    } else if (err instanceof Error) {
+        return err.message;
+    } else {
+        return unknownError;
+    }
 }
 
 export function showErrorToast(err: unknown) {
-  const errorMessage = getErrorMessage(err);
-
-  return toast.error(errorMessage);
+    const errorMessage = getErrorMessage(err);
+    return toast.error(errorMessage);
 }

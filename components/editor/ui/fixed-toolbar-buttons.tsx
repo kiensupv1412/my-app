@@ -54,7 +54,7 @@ import { MoreToolbarButton } from './more-toolbar-button';
 import { TableToolbarButton } from './table-toolbar-button';
 import { ToggleToolbarButton } from './toggle-toolbar-button';
 import { TurnIntoToolbarButton } from './turn-into-toolbar-button';
-import { ToolbarGroup } from '@/components/ui/toolbar';
+import { ToolbarGroup } from '@/components/editor/ui/toolbar';
 
 export function FixedToolbarButtons() {
   const descEditor = useEditorRef('description');

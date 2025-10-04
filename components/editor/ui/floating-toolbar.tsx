@@ -19,7 +19,7 @@ import {
 
 import { cn } from '@/lib/utils';
 
-import { Toolbar } from '@/components/ui/toolbar';
+import { Toolbar } from '@/components/editor/ui/toolbar';
 
 export function FloatingToolbar({
   children,
@@ -75,7 +75,7 @@ export function FloatingToolbar({
         {...rootProps}
         ref={ref}
         className={cn(
-          'absolute z-50 scrollbar-hide overflow-x-auto rounded-md border bg-popover p-1 whitespace-nowrap opacity-100 shadow-md print:hidden',
+          'z-[999] rounded-md border bg-popover p-1 whitespace-nowrap opacity-100 shadow-md print:hidden',
           'max-w-[80vw]',
           className
         )}

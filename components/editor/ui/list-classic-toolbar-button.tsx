@@ -17,7 +17,7 @@ import {
 import { KEYS } from 'platejs';
 import { useEditorRef } from 'platejs/react';
 
-import { ToolbarButton } from '@/components/ui/toolbar';
+import { ToolbarButton } from '@/components/editor/ui/toolbar';
 
 const nodeTypeMap: Record<string, { icon: React.JSX.Element; label: string }> =
 {

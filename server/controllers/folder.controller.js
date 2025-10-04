@@ -35,7 +35,7 @@ async function list(req, res, next) {
         "site",
         "created_at",
         "updated_at",
-        [Sequelize.fn("COUNT", Sequelize.col("Media.id")), "total"],
+        [Sequelize.fn("COUNT", Sequelize.col("Media.id")), "media_count"],
       ],
       include: [
         {

@@ -12,6 +12,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SWRConfig } from 'swr';
 import { MainInset } from '@/components/ui/main';
+import { Toaster } from "sonner";
+import { fetcher } from '@/lib/fetcher';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,13 +27,6 @@ const geistMono = Geist_Mono({
 
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-
-  const fetcher = async (url: string) => {
-    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-    return r.json();
-  };
-
   return (
     <html lang="en">
       <body
@@ -44,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <MainInset>
                 <AppHeader />
                 {children}
+                <Toaster richColors position="top-right" />
               </MainInset>
             </SidebarProvider>
           </AppToastProvider>

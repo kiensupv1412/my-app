@@ -55,15 +55,37 @@ export type MediaItem = {
     updated_at: string | null;
 };
 
-export type Meta = {
+export interface PaginationMeta {
+    limit: number | 'all';
     page: number;
     pages: number;
-    limit: number;
-    total: number | null;
-    prev: number | null;
+    total: number;
     next: number | null;
+    prev: number | null;
+}
+
+export interface PaginationData {
+    pages: number | null;
+    total: number | null;
+    limit: number;
+    setLimit: (n: number) => void;
+    page: number;
+    setPage: (page: number) => void;
+    nextPage: () => void;
+    prevPage: () => void;
+}
+
+export type Folder = {
+    id: number;
+    name: string;
+    slug: string;
+    site: number;
+    created_at?: any;
+    updated_at?: any;
+    media_count?: number;
 };
 
+export type Folders = Folder[];
 export type Articles = Article[];
 export type Categories = Category[];
 

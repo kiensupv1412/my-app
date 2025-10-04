@@ -18,8 +18,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 
-import { apiUpload } from '@/lib/media.api';
-import { Input } from '../ui/input';
+import { apiUploadMedia } from '@/lib/api';
 import { Checkbox } from '../ui/checkbox';
 
 type PickedFile = { file: File; url: string; error?: string };
@@ -120,7 +119,6 @@ export function UploadMediaDialog({
         return () => {
             files.forEach((f) => f.url && URL.revokeObjectURL(f.url));
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     async function onUpload() {
@@ -130,10 +128,10 @@ export function UploadMediaDialog({
 
         setUploading(true);
         try {
-            const uploaded = await apiUpload(valid.map(v => v.file), {
+            const uploaded = await apiUploadMedia(valid.map(v => v.file), {
                 folder_id: currentFolderId ?? undefined,
                 folder_slug: currentFolderSlug ?? undefined,
-                is_background: isBackground,                // ✅ truyền flag
+                is_background: isBackground,
             });
             onUploaded?.(uploaded);
             success('Upload thành công');
@@ -159,7 +157,6 @@ export function UploadMediaDialog({
             onOpenChange={(v) => {
                 setOpen(v);
                 if (!v) {
-                    // thu hồi URL khi đóng
                     files.forEach((f) => f.url && URL.revokeObjectURL(f.url));
                     setFiles([]);
                 }

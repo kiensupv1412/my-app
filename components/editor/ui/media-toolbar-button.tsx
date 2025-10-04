@@ -9,6 +9,7 @@ import {
   AudioLinesIcon,
   FileUpIcon,
   FilmIcon,
+  ImageDown,
   ImageIcon,
   LinkIcon,
 } from 'lucide-react';
@@ -40,7 +41,14 @@ import {
   ToolbarSplitButton,
   ToolbarSplitButtonPrimary,
   ToolbarSplitButtonSecondary,
-} from '@/components/ui/toolbar';
+} from '@/components/editor/ui/toolbar';
+import { MediaItem } from '@/types';
+import { usePageLimit, usePagination } from '@/hooks/usePagination';
+import { useMediaPage } from '@/hooks/use-media';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import Pagination from '@/components/ui/pagination';
 
 const MEDIA_CONFIG: Record<
   string,
@@ -90,10 +98,12 @@ export function MediaToolbarButton({
   const { openFilePicker } = useFilePicker({
     accept: currentConfig.accept,
     multiple: true,
-    onFilesSelected: ({ plainFiles: updatedFiles }) => {
+    onFilesSelected: async ({ plainFiles: updatedFiles }) => {
       editor.getTransforms(PlaceholderPlugin).insert.media(updatedFiles);
     },
   });
+
+  const [dialogMediaOpen, setDialogMediaOpen] = React.useState(false);
 
   return (
     <>
@@ -137,6 +147,10 @@ export function MediaToolbarButton({
                 <LinkIcon />
                 Insert via URL
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialogMediaOpen(true)}>
+                <ImageDown />
+                Chọn từ thư viện
+              </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -153,6 +167,21 @@ export function MediaToolbarButton({
             currentConfig={currentConfig}
             nodeType={nodeType}
             setOpen={setDialogOpen}
+          />
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={dialogMediaOpen}
+        onOpenChange={(value) => {
+          setDialogMediaOpen(value);
+        }}
+      >
+        <AlertDialogContent className="w-[90vw] max-w-[90vw] sm:max-w-[90vw] h-[80vh] max-h-[80vh] p-0 overflow-hidden flex flex-col">
+          <PickMediaDialogContent
+            currentConfig={currentConfig}
+            nodeType={nodeType}
+            setDialogMediaOpen={setDialogMediaOpen}
           />
         </AlertDialogContent>
       </AlertDialog>
@@ -222,6 +251,142 @@ function MediaUrlDialogContent({
           Accept
         </AlertDialogAction>
       </AlertDialogFooter>
+    </>
+  );
+}
+
+
+function PickMediaDialogContent({
+  currentConfig,
+  nodeType,
+  setDialogMediaOpen }:
+  {
+    currentConfig: (typeof MEDIA_CONFIG)[string],
+    nodeType: string,
+    setDialogMediaOpen: (value: boolean) => void
+  }) {
+
+  const editor = useEditorRef();
+  const [selected, setSelected] = React.useState<MediaItem | undefined>(undefined);
+
+  const { page, setPage, limit, setLimit } = usePageLimit(1, 40);
+  const { data: media = [], meta, mediaLoading } = useMediaPage(page, limit);
+
+  const pagination = usePagination({ limit, setLimit, meta, page, setPage });
+  const cx = (...cls: (string | false | null | undefined)[]) => cls.filter(Boolean).join(' ');
+
+  const bgItems = media.filter((m) => m.is_background);
+  const normalItems = media.filter((m) => !m.is_background);
+
+  const commit = React.useCallback(() => {
+    if (!selected) return;
+    const url = selected.file_url;
+    if (!url) return toast.error('Invalid URL');
+
+    editor.tf.insertNodes({
+      type: nodeType,
+      url,
+      name: nodeType === KEYS.file ? (selected.file_name || selected.name || url.split('/').pop() || undefined) : undefined,
+      children: [{ text: '' }],
+    });
+    setDialogMediaOpen(false);
+    toast.success('Đã chèn media.');
+  }, [editor, nodeType, selected, setDialogMediaOpen]);
+
+  return (
+    <>
+      <AlertDialogHeader className="px-4 py-3 shrink-0">
+        <AlertDialogTitle>{currentConfig.title}</AlertDialogTitle>
+        <AlertDialogDescription>
+          Click để chọn, double-click để chọn nhanh.
+        </AlertDialogDescription>
+      </AlertDialogHeader>
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+          {bgItems.map((media) => {
+            const isSel = selected?.id === media.id;
+            const src = media.file_url;
+            return (
+              <button
+                key={media.id}
+                type="button"
+                title={media.alt ?? ""}
+                onClick={() => setSelected(media)}
+                onDoubleClick={commit}
+                className={cx(
+                  "relative h-24 w-full overflow-hidden rounded-md border",
+                  "transition hover:ring-2 hover:ring-primary",
+                  isSel && "ring-2 ring-primary border-primary"
+                )}
+              >
+                <img
+                  src={src}
+                  alt={media.alt ?? "thumb"}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+                {isSel && (
+                  <span className="absolute right-1 top-1 text-[10px] rounded bg-primary px-1.5 py-0.5 text-primary-foreground">
+                    Đã chọn
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <Separator className="my-4" />
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+          {normalItems.map((media) => {
+            const isSel = selected?.id === media.id;
+            const src = media.file_url;
+            return (
+              <button
+                key={media.id}
+                type="button"
+                title={media.alt ?? ""}
+                onClick={() => setSelected(media)}
+                onDoubleClick={commit}
+                className={cx(
+                  "relative h-24 w-full overflow-hidden rounded-md border",
+                  "transition hover:ring-2 hover:ring-primary",
+                  isSel && "ring-2 ring-primary border-primary"
+                )}
+              >
+                <img
+                  src={src}
+                  alt={media.alt ?? "thumb"}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+                {isSel && (
+                  <span className="absolute right-1 top-1 text-[10px] rounded bg-primary px-1.5 py-0.5 text-primary-foreground">
+                    Đã chọn
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <DialogFooter className="px-4 py-3 border-t bg-background flex items-center justify-between gap-3">
+        <Pagination
+          {...pagination}
+          onChangeLimit={(n) => {
+            setLimit(n);
+            setPage(1);
+          }}
+          perPageOptions={[40, 80, 120, 160]}
+        />
+
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="secondary" onClick={() => setDialogMediaOpen(false)}>
+            Hủy
+          </Button>
+          <Button type="button" onClick={commit} disabled={!selected}>
+            Chọn
+          </Button>
+        </div>
+      </DialogFooter>
     </>
   );
 }

@@ -66,12 +66,16 @@ async function uploadOne(req, res, next) {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const f = req.file;
-    const folder_id =
-      Number(
-        (req.query && req.query.folder_id) ??
-          (req.body && req.body.folder_id) ??
-          0
-      ) || null;
+    let { folder_id } = req.body;
+    if (typeof folder_id === "string") {
+      const raw = folder_id.trim().toLowerCase();
+      if (raw === "" || raw === "null") folder_id = null;
+      else {
+        const n = Number(raw);
+        if (Number.isFinite(n)) folder_id = n;
+        else folder_id = null; // fallback
+      }
+    }
 
     const url = publicUrlFromAbs(f.path);
 
@@ -163,28 +167,39 @@ async function list(req, res, next) {
   try {
     const { page, limit, offset } = parsePagination(req.query, 48);
 
+    // ?u tiên middleware resolve-folder ??t s?n req._folderId = null | number | undefined
     let folder_id = Object.prototype.hasOwnProperty.call(req, "_folderId")
-      ? req._folderId // có th? là null ho?c number
+      ? req._folderId
       : undefined;
 
-    const where = {};
-
-    if (folder_id === null) {
-      // ROOT
-      where.folder_id = null;
-    } else if (Number.isFinite(folder_id)) {
-      // folder c? th?
-      where.folder_id = folder_id;
+    // N?u không có middleware, cho phép ?folder_id='null' ?? l?c ROOT
+    if (folder_id === undefined && typeof req.query.folder_id !== "undefined") {
+      const raw = String(req.query.folder_id).trim().toLowerCase();
+      if (raw === "null") folder_id = null;
+      else if (raw !== "") {
+        const n = Number(raw);
+        if (Number.isFinite(n)) folder_id = n;
+      }
     }
-    const total = await Media.count({ distinct: true, col: "Media.id" });
+
+    const where = {};
+    if (folder_id === null)
+      where.folder_id = null; // ROOT
+    else if (Number.isFinite(folder_id)) where.folder_id = folder_id; // Folder c? th?
+    // (undefined => không filter folder)
+
+    const total = await Media.count({ where });
     const rows = await Media.findAll({
       where,
       offset,
       limit,
-      order: [["id", "DESC"]],
+      order: [
+        ["is_background", "DESC"],
+        ["id", "DESC"],
+      ],
     });
 
-    res.json({
+    return res.json({
       data: rows,
       meta: buildMeta({ page, limit, total }),
     });

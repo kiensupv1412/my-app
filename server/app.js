@@ -24,6 +24,7 @@ app.use(
   cors({
     origin: process.env.CORS_ORIGIN,
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -70,7 +71,7 @@ app.post("/upload_media", uploadDynamic.single("file"), (req, res) => {
 });
 
 // routes
-app.use("/auth", authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/article", articleRoutes);
 app.use("/media", mediaRoutes);
 app.use("/folders", folderRoutes);

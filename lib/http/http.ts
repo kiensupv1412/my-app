@@ -3,6 +3,7 @@ import { AppError } from './errors';
 
 export function apiBase(): string {
     let api = process.env.NEXT_PUBLIC_API_URL ? String(process.env.NEXT_PUBLIC_API_URL) : 'http://localhost:4000';
+    // let api = '';
     while (api.endsWith('/')) api = api.slice(0, -1);
     return api;
 }

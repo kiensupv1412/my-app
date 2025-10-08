@@ -7,7 +7,8 @@ import useSWR, { mutate } from 'swr';
 import { fetcher } from '@/lib/http';
 import { Article, Articles, Categories, PaginationMeta } from '@/types';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:4000";
+// const BASE_URL = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:4000";
+const BASE_URL = '';
 
 export function useArticleEdit(id?: string | number) {
     const shouldFetch = !!id;

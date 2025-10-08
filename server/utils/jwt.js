@@ -8,7 +8,7 @@ const signAccess = (payload) =>
   });
 
 const signRefresh = (payload) =>
-  jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
+  jwt.sign(payload, process.env.JWT_ACCESS_SECRET, {
     expiresIn: Number(process.env.REFRESH_EXPIRES),
   });
 

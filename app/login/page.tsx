@@ -1,33 +1,19 @@
-'use client';
-import { useState } from 'react';
-import { signIn } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { GalleryVerticalEnd } from "lucide-react"
+
+import { LoginForm } from "@/components/login-form"
 
 export default function LoginPage() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [busy, setBusy] = useState(false);
-
-    async function onSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        setBusy(true);
-        await signIn('credentials', { email, password, redirect: true, callbackUrl: '/dashboard' });
-        setBusy(false);
-    }
-
-    return (
-        <form onSubmit={onSubmit} className="max-w-sm mx-auto py-12 space-y-4">
-            <div>
-                <Label>Email</Label>
-                <Input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-            </div>
-            <div>
-                <Label>Password</Label>
-                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-            </div>
-            <Button disabled={busy} type="submit" className="w-full">Đăng nhập</Button>
-        </form>
-    );
+  return (
+    <div className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
+      <div className="flex w-full max-w-sm flex-col gap-6">
+        <a href="#" className="flex items-center gap-2 self-center font-medium">
+          <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
+            <GalleryVerticalEnd className="size-4" />
+          </div>
+          Acme Inc.
+        </a>
+        <LoginForm />
+      </div>
+    </div>
+  )
 }

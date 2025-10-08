@@ -8,7 +8,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const sequelize = require("./models/db");
 
-const authRoutes = require("./routes/auth.routes.js");
+const authRoutes = require("./routes/auth.routes");
 const articleRoutes = require("./routes/article.routes");
 const mediaRoutes = require("./routes/media.routes");
 const folderRoutes = require("./routes/folder.routes");
@@ -70,6 +70,7 @@ app.post("/upload_media", uploadDynamic.single("file"), (req, res) => {
 });
 
 // routes
+app.use("/auth", authRoutes);
 app.use("/article", articleRoutes);
 app.use("/media", mediaRoutes);
 app.use("/folders", folderRoutes);

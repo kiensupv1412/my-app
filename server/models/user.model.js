@@ -28,6 +28,8 @@ const User = authDB.define(
   {
     tableName: "users",
     timestamps: true,
+    createdAt: "created_at",
+    updatedAt: "updated_at",
     hooks: {
       async beforeCreate(user) {
         const salt = await bcrypt.genSalt(10);

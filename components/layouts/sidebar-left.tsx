@@ -45,6 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { signOut } from "next-auth/react"
 
 
 const user = {
@@ -179,7 +180,10 @@ export function AppSidebarLeft({ ...props }: React.ComponentProps<typeof Sidebar
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={async () => {
+                  await fetch('/api/logout', { method: 'POST' });
+                  await signOut({ callbackUrl: '/login' });
+                }}>
                   <IconLogout />
                   Log out
                 </DropdownMenuItem>

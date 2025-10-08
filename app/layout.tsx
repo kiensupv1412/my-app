@@ -14,6 +14,7 @@ import { Toaster } from "sonner";
 import { MainInset } from '@/components/ui/main';
 import { SWRConfig } from 'swr';
 import { swrConfig } from '@/lib/swr';
+import { SessionProvider } from 'next-auth/react';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -21,16 +22,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
       >
-        <SWRConfig value={swrConfig}>
-          <SidebarProvider>
-            <AppSidebarLeft variant="inset" />
-            <MainInset>
-              <AppHeader />
-              {children}
-              <Toaster richColors position="top-right" />
-            </MainInset>
-          </SidebarProvider>
-        </SWRConfig>
+        <SessionProvider>
+          <SWRConfig value={swrConfig}>
+            <SidebarProvider>
+              <AppSidebarLeft variant="inset" />
+              <MainInset>
+                <AppHeader />
+                {children}
+                <Toaster richColors position="top-right" />
+              </MainInset>
+            </SidebarProvider>
+          </SWRConfig>
+        </SessionProvider>
       </body>
     </html>
   );

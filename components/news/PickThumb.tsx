@@ -16,7 +16,7 @@ import Pagination from '../ui/pagination';
 import { usePageLimit, usePagination } from '@/hooks/usePagination';
 
 type Props = {
-    thumb: MediaItem | undefined;
+    thumb?: MediaItem | undefined;
     onConfirmAction: (media: MediaItem | undefined) => void;
     fallbackUrl?: string;           // ảnh mặc định khi chưa có thumb
     overrideTriggerUrl?: string;    // URL ép để hiển thị ở trigger (preview cục bộ)
@@ -24,11 +24,11 @@ type Props = {
 
 export default function PickThumb({ thumb, onConfirmAction, fallbackUrl, overrideTriggerUrl }: Props) {
     const [open, setOpen] = React.useState(false);
-    const [selected, setSelected] = React.useState<MediaItem | undefined>(thumb);
+    const [selected, setSelected] = React.useState<MediaItem | null>(thumb ?? null);
 
     const commit = React.useCallback(() => {
         if (selected?.id == thumb?.id) return;
-        onConfirmAction?.(selected);
+        onConfirmAction?.(selected ?? undefined);
         setOpen(false);
     }, [onConfirmAction, selected]);
 

@@ -9,6 +9,8 @@ const { parsePagination, buildMeta } = require("../utils/pagination");
 const { ok, created, badRequest, notFound } = require("../utils/http");
 const { parseId } = require("../utils/ids");
 const buildFilters = require("../utils/buildFilters");
+const { Op } = require("sequelize");
+const Tag = require("../models/tags.model");
 
 // Lấy tất cả articles
 async function getArticles(req, res, next) {
@@ -66,6 +68,21 @@ async function getArticle(req, res, next) {
   }
 }
 
+async function checkSlugAvailability(req, res, next) {
+  const { slug } = req.params;
+  if (!slug)
+    return res.status(400).json({ success: false, message: "Missing slug" });
+  const excludeId = req.body.exclude_id;
+  const where = excludeId ? { slug, id: { [Op.ne]: excludeId } } : { slug };
+  const available = await Article.findOne({ attributes: ["id"], where });
+
+  return res.json({
+    available: !available,
+    slug: slug,
+    conflict_id: available?.id ?? null,
+  });
+}
+
 // Lấy tất cả categories
 async function getCategories(req, res, next) {
   try {
@@ -73,6 +90,38 @@ async function getCategories(req, res, next) {
     return ok(res, rows);
   } catch (e) {
     next(e);
+  }
+}
+
+// Tìm kiếm tags
+async function searchTags(req, res, next) {
+  try {
+    const q = String(req.query.q || "").trim();
+
+    if (!q) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const qSlug = slugifyVi(q);
+
+    const whereClause = {
+      [Op.or]: [
+        { name: { [Op.like]: `${q}%` } },
+        { slug: { [Op.like]: `${qSlug}%` } },
+      ],
+    };
+
+    const rows = await Tag.findAll({
+      attributes: ["id", "name", "slug"],
+      where: whereClause,
+      order: [["name", "ASC"]],
+    });
+
+    return res.json(rows);
+  } catch (e) {
+    return res
+      .status(500)
+      .json({ success: false, message: e.message || "Search failed" });
   }
 }
 
@@ -125,10 +174,20 @@ async function deleteArticleOne(req, res, next) {
   }
 }
 
+const slugifyVi = (s = "") =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+
 module.exports = {
   getArticles,
   getCategories,
   getArticle,
+  checkSlugAvailability,
+  searchTags,
   deleteArticleOne,
   postArticle,
   updateArticleOne,

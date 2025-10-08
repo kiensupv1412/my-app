@@ -6,12 +6,13 @@ export interface Article {
     status: Status;
     title: string | "";
     slug: string | "";
-    description: string | "";
-    description_html: string | "";
-    content_html: string | "";
-    content: string | "";
+    description: string | "" | null;
+    description_html: string | "" | null;
+    content_html: string | "" | null;
+    content: string | "" | null;
     thumb_id: number | null;
     thumb: MediaItem;
+    tags: Tag[];
     priority: number;
     created_at: string;
     updated_at: string;
@@ -30,7 +31,6 @@ export interface Category {
 
 export type MediaItem = {
     id: number;
-    site: number | null;
     is_background: boolean | null;
     folder_id: number | null;
     user_id: number | null;
@@ -54,6 +54,14 @@ export type MediaItem = {
     created_at: string | null;
     updated_at: string | null;
 };
+
+
+export type Tag = {
+    id: number;
+    name: string;
+    slug: string;
+    description: string | null;
+}
 
 export interface PaginationMeta {
     limit: number | 'all';
@@ -88,7 +96,10 @@ export type Folder = {
 export type Folders = Folder[];
 export type Articles = Article[];
 export type Categories = Category[];
+export type Tags = Tag[];
 
 export type Mode = "create" | "edit";
 export type ArticleCreatePayload = Omit<Article, 'id' | 'created_at' | 'updated_at'>;
 export type ArticleUpdatePayload = Partial<Omit<Article, 'id' | 'created_at' | 'updated_at'>>;
+export type User = { id: number; email: string; name: string };
+export type LoginResp = { success: boolean; access_token: string; user: User };

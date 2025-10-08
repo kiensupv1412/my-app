@@ -3,9 +3,13 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
-export type UploadedFile<T = unknown> = {
-    name: string; size: number; type: string; url: string; appUrl?: string;
-} & (T extends object ? T : Record<string, never>);
+export type UploadedFile<Extra extends object = Record<string, never>> = {
+    name: string;
+    size: number;
+    type: string;
+    url: string;
+    appUrl?: string;
+} & Extra;
 
 type UploadFilesOptionsCompat = {
     headers?: Record<string, string>;
@@ -14,37 +18,46 @@ type UploadFilesOptionsCompat = {
     skipPolling?: boolean;
 };
 
-interface UseUploadFileProps extends Pick<
-    UploadFilesOptionsCompat,
-    'headers' | 'onUploadBegin' | 'onUploadProgress' | 'skipPolling'
-> {
-    endpoint?: string;             // default: '/upload_media'
+interface UseUploadFileProps<Extra extends object = Record<string, never>>
+    extends Pick<
+        UploadFilesOptionsCompat,
+        'headers' | 'onUploadBegin' | 'onUploadProgress' | 'skipPolling'
+    > {
+    endpoint?: string;            // default: '/upload_media'
     folder_id?: number | string | null;
-    onUploadComplete?: (file: UploadedFile) => void;
+    onUploadComplete?: (file: UploadedFile<Extra>) => void;
     onUploadError?: (error: unknown) => void;
-    autoResetMs?: number | null;   // mới: tự reset sau X ms; null = không reset
+    autoResetMs?: number | null;  // null = không reset tự động
 }
 
-export function useUploadFile({
+type PctArg = number | ((prev: number) => number);
+
+export function useUploadFile<Extra extends object = Record<string, never>>({
     endpoint = 'http://localhost:4000/upload_media',
     folder_id,
     onUploadComplete,
     onUploadError,
-    autoResetMs = 800, // ← mặc định reset chậm
+    autoResetMs = 800,
     ...props
-}: UseUploadFileProps = {}) {
-    const [uploadedFile, setUploadedFile] = React.useState<UploadedFile>();
+}: UseUploadFileProps<Extra> = {}) {
+    const [uploadedFile, setUploadedFile] = React.useState<UploadedFile<Extra>>();
     const [uploadingFile, setUploadingFile] = React.useState<File>();
     const [progress, setProgress] = React.useState<number>(0);
     const [isUploading, setIsUploading] = React.useState(false);
 
-    const setPct = React.useCallback((n: number) => {
-        const v = Math.max(0, Math.min(100, Math.round(n)));
-        setProgress(v);
-        props.onUploadProgress?.({ progress: v });
-    }, [props]);
+    const setPct = React.useCallback(
+        (arg: PctArg) => {
+            setProgress(prev => {
+                const next = typeof arg === 'function' ? (arg as (p: number) => number)(prev) : arg;
+                const v = Math.max(0, Math.min(100, Math.round(next)));
+                props.onUploadProgress?.({ progress: v });
+                return v;
+            });
+        },
+        [props]
+    );
 
-    async function uploadFile(file: File): Promise<UploadedFile> {
+    async function uploadFile(file: File): Promise<UploadedFile<Extra>> {
         setIsUploading(true);
         setUploadingFile(file);
         setPct(0);
@@ -55,45 +68,40 @@ export function useUploadFile({
             form.append('file', file);
             if (folder_id != null) form.append('folder_id', String(folder_id));
 
-            const uploaded = await new Promise<UploadedFile>((resolve, reject) => {
+            const uploaded = await new Promise<UploadedFile<Extra>>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('POST', endpoint);
 
-                // ĐỪNG set 'Content-Type' cho FormData
+                // Không set 'Content-Type' cho FormData
                 if (props.headers) {
                     for (const [k, v] of Object.entries(props.headers)) {
-                        if (k.toLowerCase() === 'content-type') continue; // chặn
+                        if (k.toLowerCase() === 'content-type') continue;
                         xhr.setRequestHeader(k, v);
                     }
                 }
 
-                // === DEBUG events (bật khi cần) ===
-                // xhr.upload.onloadstart = () => console.log('[upload] loadstart');
-                // xhr.upload.onabort     = () => console.log('[upload] abort');
-                // xhr.upload.onerror     = (e) => console.log('[upload] error', e);
-                // xhr.upload.onloadend   = () => console.log('[upload] loadend');
-
-                xhr.upload.onprogress = (evt) => {
+                xhr.upload.onprogress = (evt: ProgressEvent<EventTarget>) => {
                     if (evt.lengthComputable && evt.total > 0) {
                         setPct((evt.loaded / evt.total) * 100);
                     } else {
-                        // Không tính được tổng → cứ nhích nhẹ để UI thấy đang chạy
-                        setPct((p) => (p < 95 ? p + 1 : p));
+                        // không biết total -> nhích nhẹ
+                        setPct(p => (p < 95 ? p + 1 : p));
                     }
                 };
 
-                // Khi server trả về xong → ép 100
                 xhr.onload = () => {
                     try {
                         if (xhr.status >= 200 && xhr.status < 300) {
                             setPct(100);
                             const json = JSON.parse(xhr.responseText || '{}');
-                            const data: any = json.data ?? json; // chấp nhận cả {data:...} lẫn {...}
-                            resolve(data as UploadedFile);
+                            const data = (json.data ?? json) as UploadedFile<Extra>;
+                            resolve(data);
                         } else {
                             reject(new Error(xhr.responseText || `HTTP ${xhr.status}`));
                         }
-                    } catch (e) { reject(e); }
+                    } catch (e) {
+                        reject(e);
+                    }
                 };
 
                 xhr.onerror = () => reject(new Error('Network error'));
@@ -109,13 +117,14 @@ export function useUploadFile({
             onUploadError?.(error);
 
             // Mock fallback (giữ UX)
-            const mock: UploadedFile = {
+            const mock = {
                 appUrl: `https://mock-app-url.com/${file.name}`,
-                name: file.name, size: file.size, type: file.type,
-                url: URL.createObjectURL(file)
-            };
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                url: URL.createObjectURL(file),
+            } as UploadedFile<Extra>;
 
-            // Animate tới 100 cho đẹp
             for (let p = progress; p < 100; p += 2) {
                 await new Promise(r => setTimeout(r, 16));
                 setPct(p + 2);
@@ -123,7 +132,7 @@ export function useUploadFile({
             setUploadedFile(mock);
             return mock;
         } finally {
-            // KHÔNG reset ngay → UI còn thấy 100% 1 lúc
+            // để 100% hiển thị một lúc trước khi reset
             if (autoResetMs != null) {
                 setTimeout(() => {
                     setProgress(0);

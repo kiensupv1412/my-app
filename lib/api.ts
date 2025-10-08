@@ -1,23 +1,17 @@
 // path: /lib/api.ts
-import { Folder, Folders, MediaItem, PaginationMeta } from "@/types";
+import type { Folder, Folders, MediaItem, PaginationMeta } from "@/types";
 
-export type ListMediaResp = {
-  page: number;
-  pageSize: number;
-  total: number;
-  rows: any[];
-};
+// [CHANGE] chỉ import từ barrel /lib/http
+import {
+  apiBase,
+  apiFetch,
+  qs,
+  AppError,
+  // dùng cho XHR error mapping
+  // (đã re-export từ lib/http/index.ts)
+} from "@/lib/http";
 
-/* ============
- * URL helpers
- * ============ */
-function apiBase(): string {
-  let api = process.env.NEXT_PUBLIC_API_URL
-    ? String(process.env.NEXT_PUBLIC_API_URL)
-    : "http://localhost:4000";
-  while (api.endsWith("/")) api = api.slice(0, -1);
-  return api;
-}
+// [KEEP] helper giữ nguyên vì là logic domain của /media uploads
 function extractItemsFromPayload(payload: any): any[] {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
@@ -26,69 +20,29 @@ function extractItemsFromPayload(payload: any): any[] {
   if (payload && payload.id !== undefined) return [payload];
   return [];
 }
-function qs(params: Record<string, string | number | null | undefined>) {
-  const parts: string[] = [];
-  for (const k in params) {
-    const v = params[k];
-    if (v === undefined || v === null) continue;
-    parts.push(
-      encodeURIComponent(String(k)) + "=" + encodeURIComponent(String(v))
-    );
-  }
-  return parts.length ? "?" + parts.join("&") : "";
-}
 
 /* ===========================
    FOLDERS
    =========================== */
-export async function apiListFolders(): Promise<Folders[]> {
+export async function apiListFolders(): Promise<Folders> {
   const url = apiBase() + "/folders";
-  const res = await fetch(url, { method: "GET", cache: "no-store" });
-  const payload = await res.json();
-
-  if (!res.ok) {
-    const msg =
-      typeof payload === "string"
-        ? payload
-        : (payload && (payload as any).error) || "Folder list failed";
-    throw new Error(String(msg));
-  }
-
-  return (Array.isArray(payload) ? payload : []) as Folders[];
+  const payload = await apiFetch<any>(url, { method: "GET", cache: "no-store" });
+  return (Array.isArray(payload) ? payload : []) as Folders;
 }
-export async function apiCreateFolder(
-  name: string,
-  site: number
-): Promise<Folder> {
+
+export async function apiCreateFolder(name: string, site: number): Promise<Folder> {
   const url = apiBase() + "/folders";
-  const res = await fetch(url, {
+  const payload = await apiFetch<Folder>(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name: String(name), site: Number(site) }),
   });
-  const payload = await res.json();
-  if (!res.ok) {
-    const msg =
-      typeof payload === "string"
-        ? payload
-        : (payload && (payload as any).error) || "Create folder failed";
-    throw new Error(String(msg));
-  }
   return payload as Folder;
 }
-export async function apiDeleteFolder(
-  id: number
-): Promise<{ ok: boolean; id: number }> {
+
+export async function apiDeleteFolder(id: number): Promise<{ ok: boolean; id: number }> {
   const url = apiBase() + "/folders/" + String(id);
-  const res = await fetch(url, { method: "DELETE" });
-  const payload = await res.json();
-  if (!res.ok) {
-    const msg =
-      typeof payload === "string"
-        ? payload
-        : (payload && (payload as any).error) || "Delete folder failed";
-    throw new Error(String(msg));
-  }
+  const payload = await apiFetch<{ ok: boolean; id: number }>(url, { method: "DELETE" });
   return payload as { ok: boolean; id: number };
 }
 
@@ -116,51 +70,33 @@ export async function apiListMedia(params: {
               : undefined,
     });
 
-  const res = await fetch(url, { method: "GET", cache: "no-store" });
-  let payload: any;
-  try {
-    payload = await res.json();
-  } catch {
-    throw new Error("Invalid JSON response");
-  }
-
-  if (!res.ok) {
-    const msg =
-      typeof payload === "string"
-        ? payload
-        : payload?.error || "List media failed";
-    throw new Error(String(msg));
-  }
+  const payload = await apiFetch<any>(url, { method: "GET", cache: "no-store" });
 
   return {
-    data: Array.isArray(payload?.data) ? payload.data : [],
-    meta: payload?.meta || {
-      page: 1,
-      limit: 10,
-      pages: 1,
-      total: 0,
-      prev: null,
-      next: null,
-    },
+    data: Array.isArray(payload?.data) ? (payload.data as MediaItem[]) : [],
+    meta:
+      payload?.meta ?? {
+        page: 1,
+        limit: 10,
+        pages: 1,
+        total: 0,
+        prev: null,
+        next: null,
+      },
   };
 }
+
 export async function apiDeleteMedia(
   id: number
 ): Promise<{ mess?: string; ok?: boolean; id: number }> {
   const url = apiBase() + "/media/" + String(id);
-  const res = await fetch(url, { method: "DELETE" });
-  const payload = await res.json();
-  if (!res.ok) {
-    const msg =
-      typeof payload === "string"
-        ? payload
-        : (payload && (payload as any).error) || "Delete media failed";
-    throw new Error(String(msg));
-  }
+  const payload = await apiFetch<{ mess?: string; ok?: boolean; id: number }>(url, {
+    method: "DELETE",
+  });
   return payload as { mess?: string; ok?: boolean; id: number };
 }
+
 /** Upload 1 hoặc nhiều file. Có thể truyền folder_id hoặc folder_slug */
-// @/lib/api.ts (hoặc nơi bạn export)
 export async function apiUploadMedia(
   files: File[],
   opts?: {
@@ -173,27 +109,28 @@ export async function apiUploadMedia(
 ) {
   if (!files?.length) return [];
 
-  const url = apiBase() + (files.length === 1 ? '/media/upload' : '/media/uploads');
+  const url = apiBase() + (files.length === 1 ? "/media/upload" : "/media/uploads");
   const fd = new FormData();
-  if (files.length === 1) fd.append('file', files[0]);
-  else files.forEach((f) => fd.append('files', f));
+  if (files.length === 1) fd.append("file", files[0]);
+  else files.forEach((f) => fd.append("files", f));
 
-  if (Object.prototype.hasOwnProperty.call(opts ?? {}, 'folder_id')) {
+  if (Object.prototype.hasOwnProperty.call(opts ?? {}, "folder_id")) {
     const fid = opts?.folder_id;
-    if (fid === null) fd.append('folder_id', 'null');
-    else if (typeof fid === 'number' && Number.isFinite(fid)) fd.append('folder_id', String(fid));
+    if (fid === null) fd.append("folder_id", "null");
+    else if (typeof fid === "number" && Number.isFinite(fid)) fd.append("folder_id", String(fid));
   }
-  if (opts?.folder_slug) fd.append('folder_slug', String(opts.folder_slug).trim());
-  if (typeof opts?.is_background === 'boolean') fd.append('is_background', String(opts.is_background));
+  if (opts?.folder_slug) fd.append("folder_slug", String(opts.folder_slug).trim());
+  if (typeof opts?.is_background === "boolean")
+    fd.append("is_background", String(opts.is_background));
 
+  // XHR để có progress, map lỗi về AppError
   const items = await new Promise<any[]>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', url);
+    xhr.open("POST", url);
 
-    // KHÔNG set 'Content-Type' cho FormData
     if (opts?.headers) {
       for (const [k, v] of Object.entries(opts.headers)) {
-        if (k.toLowerCase() === 'content-type') continue;
+        if (k.toLowerCase() === "content-type") continue; // FormData tự set
         xhr.setRequestHeader(k, v);
       }
     }
@@ -204,7 +141,7 @@ export async function apiUploadMedia(
           const pct = Math.round((evt.loaded / evt.total) * 100);
           opts.onProgress(Math.min(pct, 100), evt);
         } else {
-          opts.onProgress(-1, evt); // không tính được tổng
+          opts.onProgress(-1, evt);
         }
       }
     };
@@ -212,16 +149,37 @@ export async function apiUploadMedia(
     xhr.onload = () => {
       try {
         const ok = xhr.status >= 200 && xhr.status < 300;
-        const json = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-        if (!ok) {
-          const msg = typeof json === 'string' ? json : json?.error || `HTTP ${xhr.status}`;
-          return reject(new Error(String(msg)));
+        const text = xhr.responseText;
+        let json: any = undefined;
+        try {
+          json = text ? JSON.parse(text) : undefined;
+        } catch {
+          // nuốt lỗi parse
         }
+
+        if (!ok) {
+          // [CHANGE] ném AppError đồng nhất (message đã chuẩn hoá ở server → nếu cần,
+          // bạn có thể thêm normalizeErrorMessage/mapStatusToKind vào barrel và dùng ở đây)
+          const msg =
+            (typeof json === "string" && json) ||
+            json?.message ||
+            json?.error ||
+            `HTTP ${xhr.status}`;
+          const retryable = xhr.status === 429 || xhr.status === 503;
+          return reject(new AppError(msg, xhr.status >= 500 ? "server" : "validation", {
+            status: xhr.status,
+            retryable,
+            details: json
+          }));
+        }
+
         resolve(extractItemsFromPayload(json ?? {}));
-      } catch (e) { reject(e); }
+      } catch (e) {
+        reject(new AppError("Upload failed", "unknown", { details: e }));
+      }
     };
 
-    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.onerror = () => reject(new AppError("Network error", "network", { retryable: true }));
     xhr.send(fd);
   });
 

@@ -6,7 +6,6 @@
 import { IconPlus } from '@tabler/icons-react';
 import * as React from 'react';
 
-import { useAppToast } from '@/components/providers/app-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +22,7 @@ import { Checkbox } from '../ui/checkbox';
 import { TinyProgress } from '../ui/tinyProgress';
 import { useProgress } from '@/hooks/use-progress';
 import { MediaItem } from '@/types';
+import { toast } from 'sonner';
 
 type PickedFile = {
     file: File;
@@ -59,7 +59,6 @@ export function UploadMediaDialog({
     const [files, setFiles] = React.useState<PickedFile[]>([]);
     const [uploading, setUploading] = React.useState(false);
     const [isBackground, setIsBackground] = React.useState(false);
-    const { success, error } = useAppToast();
 
     const { loaded, total, fromEvent, reset } = useProgress();
     const pct = total > 0 ? Math.round((loaded / total) * 100) : 0;
@@ -67,43 +66,49 @@ export function UploadMediaDialog({
     const [doneSet, setDoneSet] = React.useState<Set<number>>(new Set());
 
     function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-        const target = e.target;
-        if (!target || !target.files) return;
+        const input = e.currentTarget;                 // dùng currentTarget: đúng kiểu HTMLInputElement
+        const files = Array.from(input.files ?? []);   // luôn là array, kể cả khi null
+
+        if (files.length === 0) {
+            input.value = '';                            // reset để lần sau chọn lại cùng file vẫn trigger
+            return;
+        }
 
         setFiles((prev) => {
             const prevKeys = new Set(prev.map(f => `${f.file.name}_${f.file.size}`));
+            const seenThisPick = new Set<string>();      // tránh trùng trong cùng lượt chọn
+            const added: PickedFile[] = [];
 
-            const next: PickedFile[] = [];
-            for (let i = 0; i < target.files.length; i++) {
-                const f = target.files[i];
+            for (const f of files) {
                 const key = `${f.name}_${f.size}`;
+                if (prevKeys.has(key) || seenThisPick.has(key)) continue;
 
-                if (prevKeys.has(key)) continue;
-
-                const okType = ALLOWED.includes(f.type);
+                // Validate
+                const okType = ALLOWED.length ? ALLOWED.includes(f.type) : true;
                 const okSize = f.size <= 20 * 1024 * 1024;
-                const err = okType && okSize
-                    ? undefined
-                    : !okType
-                        ? 'Định dạng không hỗ trợ'
-                        : 'Kích thước vượt 20MB';
 
-                next.push({
+                const error =
+                    !okType ? 'Định dạng không hỗ trợ'
+                        : !okSize ? 'Kích thước vượt 20MB'
+                            : undefined;
+
+                added.push({
                     file: f,
                     url: URL.createObjectURL(f),
-                    error: err,
+                    error,
                     loaded: 0,
                     total: 0,
-                    status: 'idle'
+                    status: error ? 'error' : 'idle',
                 });
+
+                seenThisPick.add(key);
             }
 
-            // File mới luôn đứng trước
-            return [...next, ...prev];
+            // File mới đứng trước
+            return [...added, ...prev];
         });
 
-        // reset input để onChange vẫn chạy nếu chọn lại đúng file đó
-        target.value = '';
+        input.value = ''; // reset cuối hàm
     }
 
     function removeAt(idx: number) {
@@ -123,7 +128,7 @@ export function UploadMediaDialog({
 
     async function onUpload() {
         const validIdx = files.map((f, i) => (!f.error ? i : -1)).filter(i => i >= 0);
-        if (!validIdx.length) return error('Không có file hợp lệ');
+        if (!validIdx.length) return toast.error('Không có file hợp lệ');
 
         setUploading(true);
 
@@ -180,12 +185,12 @@ export function UploadMediaDialog({
             if (okItems.length) onUploaded?.(okItems);
 
             // XONG HẾT -> đóng modal + dọn preview
-            success('Upload hoàn tất');
+            toast.success('Upload hoàn tất');
             setOpen(false);
             files.forEach(f => f.url && URL.revokeObjectURL(f.url));
             setFiles([]);
         } catch (e: any) {
-            error('Upload thất bại', e?.message);
+            toast.error('Upload thất bại', e?.message);
         } finally {
             setUploading(false);
         }

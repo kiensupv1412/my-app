@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useEditorRef } from 'platejs/react';
 
-import { Button } from './ui/button';
+import { Button } from '../ui/button';
 import {
   Command,
   CommandEmpty,
@@ -32,8 +32,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from './ui/dialog';
-import { Input } from './ui/input';
+} from '../ui/dialog';
+import { Input } from '../ui/input';
 import {
   Popover,
   PopoverContent,

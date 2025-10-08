@@ -31,7 +31,6 @@ import {
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { confirmDelete } from '@/components/modals/confirm-delete-service';
-import { useAppToast } from '@/components/providers/app-toast'
 import { MediaThumb } from '@/components/media/media-thumb';
 import Pagination from '@/components/ui/pagination';
 import { ArrowUpDown, ArrowUpWideNarrow, ArrowDownWideNarrow } from "lucide-react"
@@ -56,7 +55,6 @@ export default function Page() {
     getSortedRowModel: getSortedRowModel(),
     manualPagination: true,
     enableSortingRemoval: true,
-
   });
 
   return (
@@ -150,7 +148,7 @@ export default function Page() {
                         table.getRowModel().rows.map((row) => (
                           <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="h-18">
                             {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id} className={cell.column.columnDef.meta?.className}>
+                              <TableCell key={cell.id} >
                                 {flexRender(cell.column.columnDef.cell, cell.getContext())}
                               </TableCell>
                             ))}
@@ -220,20 +218,27 @@ function getColumns(): ColumnDef<z.infer<typeof tableSchema>>[] {
     },
     {
       header: "Thumbnail",
-      cell: ({ row }) =>
+      cell: ({ row }) => (
         <div className="relative h-14 w-[100px]">
           <MediaThumb src={row.original?.thumb?.file_url} alt={row.original.title ?? "thumbnail"}
             className="h-full w-full rounded-sm object-cover dark:brightness-[0.2] dark:grayscale" />
-        </div>
+        </div>),
     },
     {
       accessorKey: "title",
       header: "Title",
-      cell: ({ row, table }) => {
-        return <Link href={`/news/edit?id=${row.original.id}`}>{row.original.title}</Link>
-      },
+      cell: ({ row }) => (
+        <Link
+          href={`/news/edit?id=${row.original.id}`}
+          className="line-clamp-1"
+        >
+          {row.original.title}
+        </Link>
+      ),
+      size: 300,       // px
+      minSize: 300,    // px
+      enableResizing: false,
       enableHiding: false,
-      meta: { className: "whitespace-normal" }
     },
     {
       accessorKey: "category_id",
@@ -267,22 +272,13 @@ function getColumns(): ColumnDef<z.infer<typeof tableSchema>>[] {
       cell: ({ row, table }) => (
         <ActionsCell
           id={row.original.id}
-          onDelete={table.options.meta?.onDelete ?? (async () => { })}
         />
       )
     }
   ]
 }
 
-function ActionsCell({ id, onDelete }: { id: number; onDelete: (id: number) => Promise<void> }) {
-  const router = useRouter();
-  const { error } = useAppToast();
-
-  const handleDelete = async () => {
-    try { await onDelete(id); }
-    catch { error('Delete failed'); }
-  };
-
+function ActionsCell({ id }: { id: number }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -296,7 +292,7 @@ function ActionsCell({ id, onDelete }: { id: number; onDelete: (id: number) => P
         </DropdownMenuItem>
         <DropdownMenuItem>Favorite</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={handleDelete}>Delete</DropdownMenuItem>
+        <DropdownMenuItem variant="destructive"  >Delete</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

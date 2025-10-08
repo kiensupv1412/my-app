@@ -4,7 +4,7 @@
 'use client';
 
 import useSWR, { mutate } from 'swr';
-import { fetcher } from '@/lib/fetcher';
+import { fetcher } from '@/lib/http';
 import { Article, Articles, Categories, PaginationMeta } from '@/types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:4000";
@@ -112,4 +112,19 @@ export async function updateArticle(id: string | number, patch: any) {
     }, false);
 
     return serverData;
+}
+
+export async function checkSlugExists(slug: string, excludeId: number | undefined) {
+    const res = await fetch(`${BASE_URL}/article/slug/${slug}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, exclude_id: excludeId ?? null }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || "Slug check failed");
+    return data as {
+        available: boolean;
+        slug: string;
+        conflict_id: number | null;
+    };
 }

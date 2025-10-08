@@ -65,8 +65,8 @@ const navigation = [
     icon: IconFolder,
   },
   {
-    title: "Analytics",
-    url: "/Analytics",
+    title: "categories",
+    url: "/categories",
     icon: IconChartBar,
   },
   {

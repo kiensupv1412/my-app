@@ -1,49 +1,34 @@
 'use client'
-import { IconTrendingUp } from "@tabler/icons-react";
-import { MediaThumb } from "../media/media-thumb";
-import { AspectRatio } from "../ui/aspect-ratio";
 import { Separator } from "../ui/separator";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Button } from "../ui/button";
 import { Article, ArticleUpdatePayload, Categories, MediaItem, Mode, STATUS } from "@/types";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useAppToast } from "../providers/app-toast";
+import { useEffect, useMemo, useState } from "react";
 import { handlePreview, plateToHtml } from "@/lib/editorManeger";
-import { createArticle, updateArticle } from "@/hooks/use-articles";
+import { checkSlugExists, createArticle, updateArticle } from "@/hooks/use-articles";
 import { useRouter } from 'next/navigation'
 import PickThumb from "./PickThumb";
 import { normalizeSlug, safeStringify } from "@/lib/utils";
 import { z } from 'zod';
 import { apiUploadMedia } from "@/lib/api";
+import { toast } from "sonner";
+import { TagInput } from "../ui/tag-input";
 
 const FormSchema = z.object({
     title: z.string().trim().min(1, 'Tiêu đề bắt buộc').max(160),
     category_id: z.string().min(1, 'Chọn chuyên mục'),
     status: z.enum(STATUS, { errorMap: () => ({ message: 'Trạng thái không hợp lệ' }) }),
 });
-type ThumbState = {
-    id: number | null;
-    url: string;
-    blob?: Blob | null;
-    is_background?: boolean; // có phải ảnh nền để mới cho phép generate title
-};
+
+
 export function MetaPanel({ mode, article, categories, descEditor, contentEditor }:
     { mode: Mode, article: Article | null, categories: Categories, descEditor: any, contentEditor: any }) {
 
-    const router = useRouter();
-    const { success, error } = useAppToast();
-
     const DEFAULT_THUMB_URL = '/thumb-1920x1080.png';
+    const router = useRouter();
 
-    // ---- helpers --------------------------------------------------------------
-    const deriveThumb = (a: Article | null): ThumbState => ({
-        id: a?.thumb?.id ?? null,
-        url: a?.thumb?.file_url ?? DEFAULT_THUMB_URL,
-        blob: null,
-        is_background: a?.thumb?.is_background ?? true,
-    });
 
     const initialForm = useMemo(
         () => ({
@@ -54,17 +39,17 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
         }),
         [article, categories]
     );
-    const [thumb, setThumb] = useState<ThumbState>(() => deriveThumb(article));
+    const [thumb, setThumb] = useState<MediaItem | undefined>(article?.thumb ?? undefined);
     const [form, setForm] = useState(initialForm);
     const [errors, setErrors] = useState<Partial<Record<keyof typeof initialForm, string>>>({});
     const [genBusy, setGenBusy] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-
+    const [tags, setTags] = useState([]);
 
 
     useEffect(() => {
         setForm(initialForm);
-        setThumb(deriveThumb(article));
+        setThumb(article?.thumb ?? undefined);
         setErrors({});
     }, [initialForm, article]);
     const handleChange = (k: keyof typeof form, v: string) => {
@@ -73,23 +58,19 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
     };
 
     const handleConfirmThumb = (media?: MediaItem) => {
-        setThumb({
-            id: media?.id ?? null,
-            url: media?.file_url ?? DEFAULT_THUMB_URL,
-            blob: null,
-            is_background: media?.is_background ?? true,
-        });
+        setThumb(media);
     };
+
     const ensureThumbId = async (): Promise<number | undefined> => {
-        if (thumb.id != null) return thumb.id;
-        if (!thumb.blob) return undefined;
+        if (thumb?.id != null) return thumb.id;
+        if (!thumb?.file_url) return undefined;
 
         try {
-            const file = new File([thumb.blob], `og-${Date.now()}.png`, { type: 'image/png' });
+            const file = new File([thumb?.file_url], `og-${Date.now()}.png`, { type: 'image/png' });
             const uploaded = await apiUploadMedia([file], { folder_id: null });
             const item = uploaded?.[0];
             if (item && Number.isFinite(item.id)) {
-                setThumb((t) => ({ ...t, id: item.id, url: item.file_url, blob: null }));
+                setThumb((t) => ({ ...t, id: item.id, file_url: item.file_url, blob: null } as MediaItem));
                 return item.id;
             }
             throw new Error('Upload OK nhưng không nhận được id media hợp lệ');
@@ -112,12 +93,13 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
 
         const finalThumbId = await ensureThumbId();
 
-        // normalize slug 1 lần cuối để chắc chắn
-        const normalizedSlug = normalizeSlug(form.slug || form.title);
+        const availableSlug = await checkSlugExists(form.slug, article?.id);
+        if (!availableSlug.available)
+            return Promise.reject(new Error('Lỗi kiểm tra slug tồn tại'));
 
         return {
             title: form.title.trim(),
-            slug: normalizedSlug,
+            slug: availableSlug.slug,
             status: form.status,
             category_id: Number(form.category_id),
             thumb_id: finalThumbId,
@@ -139,7 +121,7 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                 fieldErrors[k] = issue.message;
             }
             setErrors(fieldErrors);
-            error('Vui lòng kiểm tra lại các trường dữ liệu.');
+            toast.error('Vui lòng kiểm tra lại các trường dữ liệu.');
             return;
         }
         setIsSubmitting(true);
@@ -149,49 +131,80 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
 
             if (isCreate) {
                 await createArticle(payload);
-                success('Đã tạo bài viết');
+                toast.success('Đã tạo bài viết');
                 router.push('/news');
             } else {
                 await updateArticle(String(article?.id), payload);
-                success('Đã cập nhật bài viết');
+                toast.success('Đã cập nhật bài viết');
             }
         } catch (e: any) {
-            error(e?.message ?? 'Lưu thất bại');
+            toast.error(e?.message ?? 'Lưu thất bại');
         } finally {
             setIsSubmitting(false);
         }
     }
 
+    async function uploadGeneratedBlob(
+        blob: Blob,
+        {
+            file_name = 'generated-' + Date.now() + '.png',
+        }: { file_name?: string; } = {}
+    ) {
+        const formData = new FormData();
+        const file = new File([blob], file_name, { type: blob.type || 'image/png' });
+        formData.append('file', file, file.name);
+
+        const res = await apiUploadMedia([file]);
+        if (!res || !res.length || !res[0].id) throw new Error('Upload không thành công');
+        return res[0];
+    }
+
+    function slugify(s: string) {
+        return s
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)+/g, '');
+    }
+
     async function handleGenerateTitle() {
-        if (!form.title?.trim()) return error('Tiêu đề đang trống');
-        if (!thumb.is_background) return error('Không phải là ảnh nền');
+        if (!form.title?.trim()) return toast.error('Tiêu đề đang trống');
+        if (!thumb?.is_background) return toast.error('Không phải là ảnh nền');
 
         try {
             setGenBusy(true);
             const blob = await generateImageOnClient({
-                inputSrc: thumb.url,
+                inputSrc: thumb.file_url,
                 title: form.title.trim(),
                 opts: { padding: 72, fontSize: 72, brandText: 'tuvibattu.vn', addGradient: true },
             });
-            const url = URL.createObjectURL(blob);
-            setThumb({ id: null, url, blob, is_background: true });
-            success('Đã tạo ảnh preview từ tiêu đề');
+
+            const uploaded = await uploadGeneratedBlob(blob, {
+                file_name: 'share-' + slugify(form.title) + '.png',
+            });
+            setThumb(uploaded as MediaItem);
+            toast.success('Đã tạo ảnh preview từ tiêu đề');
         } catch (e: any) {
-            error(e?.message ?? 'Generate thất bại');
+            toast.error(e?.message ?? 'Generate thất bại');
         } finally {
             setGenBusy(false);
         }
     }
 
+    async function fetchTags(q: string) {
+        const res = await fetch(`http://localhost:4000/article/tags/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        return data ?? [];
+    }
     return (
         <div className='w-[500px]'>
             <div>
                 <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
                     <PickThumb
-                        thumb={thumb.id ? { id: thumb.id, file_url: thumb.url } : null}
+                        thumb={thumb?.id ? { id: thumb.id, file_url: thumb.file_url, is_background: thumb.is_background } as MediaItem : undefined}
                         onConfirmAction={handleConfirmThumb}
                         fallbackUrl={DEFAULT_THUMB_URL}
-                        overrideTriggerUrl={thumb.url}
+                        overrideTriggerUrl={thumb?.file_url}
                     />
                     <Button type="button" onClick={handleGenerateTitle} disabled={genBusy}>
                         {genBusy ? 'Đang tạo…' : 'GenerateTitle'}
@@ -228,7 +241,10 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                             />
                             {errors.slug && <p className="mt-1 text-xs text-red-600">{errors.slug}</p>}
                         </div>
-
+                        <div className="h-24 flex flex-col gap-3">
+                            <Label htmlFor="slug">Tags</Label>
+                            <TagInput value={tags} onChange={setTags} fetchTags={fetchTags} />
+                        </div>
                         {/* Category + Status */}
                         <div className="flex flex-col gap-3 md:flex-row">
                             <div className="flex flex-1 flex-col gap-3">
@@ -252,7 +268,6 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                                     <p className="mt-1 text-xs text-red-600">{errors.category_id}</p>
                                 )}
                             </div>
-
                             <div className="flex flex-1 flex-col gap-3">
                                 <Label>Status</Label>
                                 <Select value={form.status} onValueChange={(v) => handleChange('status', v)}>
@@ -295,10 +310,9 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                             </Button>
 
                             <Button
-                                size="md"
                                 type="submit"
                                 disabled={!form.title || !form.category_id || isSubmitting}
-                                className="min-w-[10ch] whitespace-nowrap h-9 inline-flex items-center justify-center"
+                                className="min-w-[120px] whitespace-nowrap h-9 inline-flex items-center justify-center"
                             >
                                 {isSubmitting ? 'Đang lưu…' : mode === 'create' ? 'Tạo bài' : 'Cập nhật'}
                             </Button>
@@ -314,7 +328,7 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
 async function generateImageOnClient(params: {
     inputSrc: string;
     title: string;
-    opts?: GenOptions;
+    opts?: any;
 }): Promise<Blob> {
     const {
         padding = 80,

@@ -90,66 +90,58 @@ export function FixedToolbarButtons() {
             <FontSizeToolbarButton />
           </ToolbarGroup>
 
-          <ToolbarGroup>
-            <MarkToolbarButton nodeType={KEYS.bold} tooltip="Bold (⌘+B)">
-              <BoldIcon />
-            </MarkToolbarButton>
+          <MarkToolbarButton nodeType={KEYS.bold} tooltip="Bold (⌘+B)">
+            <BoldIcon />
+          </MarkToolbarButton>
 
-            <MarkToolbarButton nodeType={KEYS.italic} tooltip="Italic (⌘+I)">
-              <ItalicIcon />
-            </MarkToolbarButton>
+          <MarkToolbarButton nodeType={KEYS.italic} tooltip="Italic (⌘+I)">
+            <ItalicIcon />
+          </MarkToolbarButton>
 
-            <MarkToolbarButton
-              nodeType={KEYS.underline}
-              tooltip="Underline (⌘+U)"
-            >
-              <UnderlineIcon />
-            </MarkToolbarButton>
+          <MarkToolbarButton
+            nodeType={KEYS.underline}
+            tooltip="Underline (⌘+U)"
+          >
+            <UnderlineIcon />
+          </MarkToolbarButton>
 
-            <MarkToolbarButton
-              nodeType={KEYS.strikethrough}
-              tooltip="Strikethrough (⌘+⇧+M)"
-            >
-              <StrikethroughIcon />
-            </MarkToolbarButton>
+          <MarkToolbarButton
+            nodeType={KEYS.strikethrough}
+            tooltip="Strikethrough (⌘+⇧+M)"
+          >
+            <StrikethroughIcon />
+          </MarkToolbarButton>
 
-            <MarkToolbarButton nodeType={KEYS.code} tooltip="Code (⌘+E)">
-              <Code2Icon />
-            </MarkToolbarButton>
+          <MarkToolbarButton nodeType={KEYS.code} tooltip="Code (⌘+E)">
+            <Code2Icon />
+          </MarkToolbarButton>
 
-            <FontColorToolbarButton nodeType={KEYS.color} tooltip="Text color">
-              <BaselineIcon />
-            </FontColorToolbarButton>
+          <FontColorToolbarButton nodeType={KEYS.color} tooltip="Text color">
+            <BaselineIcon />
+          </FontColorToolbarButton>
 
-            <FontColorToolbarButton
-              nodeType={KEYS.backgroundColor}
-              tooltip="Background color"
-            >
-              <PaintBucketIcon />
-            </FontColorToolbarButton>
-          </ToolbarGroup>
+          <FontColorToolbarButton
+            nodeType={KEYS.backgroundColor}
+            tooltip="Background color"
+          >
+            <PaintBucketIcon />
+          </FontColorToolbarButton>
 
-          <ToolbarGroup>
-            <AlignToolbarButton />
+          <AlignToolbarButton />
 
-            <NumberedListToolbarButton />
-            <BulletedListToolbarButton />
-            <TodoListToolbarButton />
-            <ToggleToolbarButton />
-          </ToolbarGroup>
+          <NumberedListToolbarButton />
+          <BulletedListToolbarButton />
+          <TodoListToolbarButton />
+          <ToggleToolbarButton />
 
-          <ToolbarGroup>
-            <LinkToolbarButton />
-            <TableToolbarButton />
-            <EmojiToolbarButton />
-          </ToolbarGroup>
+          <LinkToolbarButton />
+          <TableToolbarButton />
+          <EmojiToolbarButton />
 
-          <ToolbarGroup>
-            <MediaToolbarButton nodeType={KEYS.img} />
-            <MediaToolbarButton nodeType={KEYS.video} />
-            <MediaToolbarButton nodeType={KEYS.audio} />
-            <MediaToolbarButton nodeType={KEYS.file} />
-          </ToolbarGroup>
+          <MediaToolbarButton nodeType={KEYS.img} />
+          <MediaToolbarButton nodeType={KEYS.video} />
+          <MediaToolbarButton nodeType={KEYS.audio} />
+          <MediaToolbarButton nodeType={KEYS.file} />
 
           <ToolbarGroup>
             <LineHeightToolbarButton />

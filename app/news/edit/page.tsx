@@ -3,6 +3,7 @@
  */
 
 "use client"
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useArticleEdit, useCategories } from '@/hooks/use-articles';
 import { MetaPanel } from '@/components/news/MetaPanel';
@@ -17,11 +18,18 @@ import { Editor, EditorContainer } from '@/components/editor/ui/editor';
 import { PlateEditor } from '@/components/editor/plate-editor';
 
 export default function Page() {
+    return (
+        <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Đang tải…</div>}>
+            <EditPageInner />
+        </Suspense>
+    );
+}
+
+function EditPageInner() {
     const sp = useSearchParams();
     const id = sp.get('id') ?? '';
     const { article } = useArticleEdit(id)
     const { categories } = useCategories()
-
 
     const descEditor = usePlateEditor({
         id: 'description',
@@ -48,6 +56,7 @@ export default function Page() {
         if (!descEditor || initialDescription == null) return;
         handleEditor({ mode, editor: descEditor, defaultValue: initialDescription });
     }, [initialDescription]);
+
     return (
         <div className="flex flex-1 min-h-0">
             <div className="w-full flex flex-col gap-4 border-r min-h-0 grow overflow-y-auto">
@@ -69,6 +78,8 @@ export default function Page() {
                 article={article}
                 categories={categories}
                 descEditor={descEditor}
-                contentEditor={contentEditor} />
-        </div>)
+                contentEditor={contentEditor}
+            />
+        </div>
+    );
 }

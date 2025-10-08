@@ -1,18 +1,25 @@
 'use client';
+import useSWR from 'swr';
+import type { SWRConfiguration } from 'swr';
 import { apiListFolders } from '@/lib/api';
-import { Folders } from '@/types';
-import useSWR, { SWRConfiguration } from 'swr'
+import type { Folder, Folders } from '@/types';
+import type { AppError } from '@/lib/http';
 
-export function useFolders(config?: SWRConfiguration) {
-    const { data, error, isLoading, mutate } = useSWR(
-        'folders',
-        apiListFolders,
-        { revalidateOnFocus: false, ...config }
-    )
+const KEY = 'folders' as const;
+
+export function useFolders(config?: SWRConfiguration<Folders, AppError>) {
+    const { data, error, isLoading, isValidating, mutate } = useSWR<Folders, AppError, typeof KEY>(
+        KEY,
+        () => apiListFolders(),
+        { revalidateOnFocus: false, keepPreviousData: true, ...config }
+    );
+
     return {
-        folders: (data ?? []) as Folders[],
+        folders: data ?? [],
         foldersError: error,
+        canRetry: !!error?.retryable,
         foldersLoading: isLoading,
+        isValidating,
         refetch: mutate,
-    }
+    };
 }

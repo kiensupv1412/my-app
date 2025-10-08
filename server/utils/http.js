@@ -1,4 +1,5 @@
 exports.ok = (res, data) => res.json(data);
+
 exports.created = (res, data, location) => {
   if (location) res.set("Location", location);
   return res.status(201).json({ data });

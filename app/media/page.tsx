@@ -1,8 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAppToast } from '@/components/providers/app-toast';
 import { confirmDelete } from '@/components/modals/confirm-delete-service';
 import { MediaDetail } from '@/components/media/media-detail';
 import { useMediaPage } from '@/hooks/use-media';
@@ -11,16 +11,26 @@ import { apiDeleteMedia } from '@/lib/api';
 import Pagination from '@/components/ui/pagination';
 import { usePageLimit, usePagination } from '@/hooks/usePagination';
 import { useFolders } from '@/hooks/use-folders';
-import { Folder, Folders } from '@/types';
+import { Folder } from '@/types';
+import { toast } from 'sonner';
 
 /*
  * path: app/media/page.tsx
  */
 export default function MediaPage() {
+    // Chỉ việc bọc Suspense quanh phần dùng search params
+    return (
+        <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Đang tải…</div>}>
+            <MediaPageInner />
+        </Suspense>
+    );
+}
+
+// ---- TẤT CẢ LOGIC CŨ CHUYỂN SANG ĐÂY (giữ nguyên cấu trúc/props) ----
+function MediaPageInner() {
     const router = useRouter();
     const sp = useSearchParams();
-    const { success, error } = useAppToast();
-    const { page, setPage, limit, setLimit } = usePageLimit(1, 40)
+    const { page, setPage, limit, setLimit } = usePageLimit(1, 40);
 
     const folderId = React.useMemo(() => {
         const raw = sp.get('folder');
@@ -36,11 +46,16 @@ export default function MediaPage() {
         setLimit,
         meta,
         page,
-        setPage
+        setPage,
     });
 
     async function handleDelete(id: number) {
-        const ok = await confirmDelete({ title: 'Xoá ảnh', description: 'Xoá vĩnh viễn?', confirmText: 'Xoá', cancelText: 'Huỷ' });
+        const ok = await confirmDelete({
+            title: 'Xoá ảnh',
+            description: 'Xoá vĩnh viễn?',
+            confirmText: 'Xoá',
+            cancelText: 'Huỷ',
+        });
         if (!ok) return;
         try {
             await mutate((cur: any) => {
@@ -51,10 +66,9 @@ export default function MediaPage() {
             }, false);
 
             await apiDeleteMedia(id);
-            success('Đã xoá ảnh');
-
+            toast.success('Đã xoá ảnh');
         } catch (e: any) {
-            error(e?.message ?? 'Xoá thất bại');
+            toast.error(e?.message ?? 'Xoá thất bại');
         }
     }
 
@@ -62,7 +76,11 @@ export default function MediaPage() {
 
     function FolderCard({ folder, onOpen }: { folder: Folder; onOpen?: (id: number) => void }) {
         const itemText =
-            typeof folder.media_count === 'number' ? (folder.media_count === 0 ? 'Trống' : `${folder.media_count} mục`) : '—';
+            typeof folder.media_count === 'number'
+                ? folder.media_count === 0
+                    ? 'Trống'
+                    : `${folder.media_count} mục`
+                : '—';
         return (
             <div
                 role="button"
@@ -101,20 +119,15 @@ export default function MediaPage() {
                     currentFolderName={null}
                     onBack={folderId ? () => router.push('/media') : undefined}
                     uploadTargetFolderId={folderId}
-                    onUploaded={
-                        () => {
-                            mutate(undefined, true);
-                        }}
+                    onUploaded={() => {
+                        mutate(undefined, true);
+                    }}
                 />
 
-                {/* Nếu không có folderId -> danh sách folder (UI giữ nguyên) */}
+                {/* Không có folderId -> hiển thị danh sách folder */}
                 {!folderId && (
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
-                        <button
-                            // onClick={ }
-                            className="group relative w-full text-left h-28"
-                            title="Create folder"
-                        >
+                        <button className="group relative w-full text-left h-28" title="Create folder">
                             <div className="rounded-xl border border-dashed bg-background p-3 transition-colors hover:bg-accent/30">
                                 <div className="flex h-24 w-full items-center justify-center rounded-lg bg-muted/60">
                                     <div className="flex flex-col items-center text-muted-foreground">
@@ -130,7 +143,8 @@ export default function MediaPage() {
                         </button>
 
                         {!foldersLoading &&
-                            folders.map((folder) => (
+                            folders?.length &&
+                            folders.map((folder: Folder) => (
                                 <FolderCard
                                     key={folder.id}
                                     folder={folder}
@@ -140,10 +154,10 @@ export default function MediaPage() {
                     </div>
                 )}
 
-                {/* MEDIA GRID (giữ nguyên UI) */}
-                <div className='flex-1 min-h-0 overflow-y-auto'>
+                {/* MEDIA GRID */}
+                <div className="flex-1 min-h-0 overflow-y-auto">
                     <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable] content-start grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 flex-1">
-                        {media ?
+                        {media ? (
                             media.map((m) => (
                                 <MediaDetail
                                     key={m.id}
@@ -164,9 +178,10 @@ export default function MediaPage() {
                                     }}
                                     onDelete={handleDelete}
                                 />
-                            )) : (
-                                <div className="col-span-full py-6 text-center text-sm text-muted-foreground">Đang tải…</div>
-                            )}
+                            ))
+                        ) : (
+                            <div className="col-span-full py-6 text-center text-sm text-muted-foreground">Đang tải…</div>
+                        )}
 
                         {!mediaLoading && media.length === 0 && (
                             <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
@@ -176,13 +191,16 @@ export default function MediaPage() {
                     </div>
                 </div>
             </div>
+
             <div className="flex items-center justify-between mt-auto border-t py-2">
-                <Pagination {...pagination}
+                <Pagination
+                    {...pagination}
                     onChangeLimit={(n) => {
                         setLimit(n);
                         setPage(1);
                     }}
-                    perPageOptions={[40, 80, 120, 160]} />
+                    perPageOptions={[40, 80, 120, 160]}
+                />
             </div>
         </div>
     );

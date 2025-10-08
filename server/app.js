@@ -2,10 +2,13 @@
  * path: server/app.js
  */
 const express = require("express");
+const dotenv = require("dotenv");
 const path = require("path");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const sequelize = require("./models/db");
 
+const authRoutes = require("./routes/auth.routes.js");
 const articleRoutes = require("./routes/article.routes");
 const mediaRoutes = require("./routes/media.routes");
 const folderRoutes = require("./routes/folder.routes");
@@ -14,12 +17,12 @@ const folderRoutes = require("./routes/folder.routes");
 const { errorHandler, multerErrorHandler } = require("./middleware/errors");
 const { uploadDynamic } = require("./middleware/multer");
 
+dotenv.config();
 const app = express();
-
-// CORS
+app.use(cookieParser());
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:4000"],
+    origin: process.env.CORS_ORIGIN,
     credentials: true,
   })
 );

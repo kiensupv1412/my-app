@@ -36,26 +36,36 @@ const Pagination: React.FC<PaginationProps> = ({
     if (total && limit < total) {
         return (
             <div className="mt-1 flex items-center gap-3 text-xs text-grey-700">
-                <span>Showing {startIndex}-{endIndex} of {total}</span>
-                {onChangeLimit && (
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="per-page-select" className="text-muted-foreground">Per page:</Label>
-                        <Select
-                            value={String(limit)}
-                            onValueChange={(value) => onChangeLimit(Number(value))}
-                        >
-                            <SelectTrigger id="per-page-select" className="h-8 w-[70px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {perPageOptions.map(n => (
-                                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                )}
-
+                <div className="flex items-center justify-between">
+                    <span className="inline-block min-w-[180px] text-sm text-muted-foreground">
+                        Showing {startIndex}-{endIndex} of {total}
+                    </span>
+                    {onChangeLimit && (
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="per-page-select" className="text-muted-foreground whitespace-nowrap">
+                                Per page:
+                            </Label>
+                            <Select
+                                value={String(limit)}
+                                onValueChange={(value) => onChangeLimit(Number(value))}
+                            >
+                                <SelectTrigger
+                                    id="per-page-select"
+                                    className="h-8 w-[80px] min-w-[80px] justify-center"
+                                >
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {perPageOptions.map((n) => (
+                                        <SelectItem key={n} value={String(n)}>
+                                            {n}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                </div>
                 <div className="flex items-center gap-1">
                     <Button variant="outline" size="sm" disabled={!hasPrev} onClick={gotoFirst} title="Trang đầu">
                         <IconChevronsLeft />
@@ -63,9 +73,11 @@ const Pagination: React.FC<PaginationProps> = ({
                     <Button variant="outline" size="sm" disabled={!hasPrev} onClick={prevPage} title="Trang trước">
                         <IconChevronLeft />
                     </Button>
-                    <span className="px-2">
-                        Page <b>{page}</b>{totalPages ? <> / {totalPages}</> : null}
-                    </span>
+                    <div className="h-9 inline-flex items-center justify-center px-2 tabular-nums whitespace-nowrap min-w-[120px]">
+                        <span>
+                            Page <b>{page}</b>{totalPages ? <> / {totalPages}</> : null}
+                        </span>
+                    </div>
                     <Button variant="outline" size="sm" disabled={!hasNext} onClick={nextPage} title="Trang sau">
                         <IconChevronRight />
                     </Button>

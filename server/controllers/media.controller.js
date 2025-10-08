@@ -7,6 +7,11 @@ const Media = require("../models/media.model");
 const { parsePagination, buildMeta } = require("../utils/pagination");
 const { BadRequestError } = require("../error");
 const { saveMedia } = require("../services/media.service");
+const {
+  pickRelativeFromMedia,
+  normalizePublicRelative,
+} = require("../helpers/upload");
+const { PUBLIC_DIR } = require("../helpers/paths");
 
 async function list(req, res, next) {
   try {

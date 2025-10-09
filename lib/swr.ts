@@ -1,13 +1,10 @@
-// path: /lib/swr.ts
-import { SWRConfiguration } from 'swr';
-import { AppError } from '@/lib/http'; // từ file lib/api.ts bạn vừa chuẩn hoá
+// lib/swr.ts
+import type { SWRConfiguration } from 'swr';
 
 export const swrConfig: SWRConfiguration = {
     revalidateOnFocus: false,
-    shouldRetryOnError: (err: unknown) => {
-        const e = err as AppError | undefined;
-        return !!e?.retryable; // [CHUẨN HÓA HOOK] chỉ retry khi lỗi cho phép
-    },
-    errorRetryCount: 3,
-    errorRetryInterval: (count) => Math.min(1000 * 2 ** count, 8000), // backoff
+    dedupingInterval: 300,
+    errorRetryCount: 2,
+    errorRetryInterval: 1000,
+    shouldRetryOnError: (err: any) => !!err?.retryable, // chỉ retry lỗi tạm thời
 };

@@ -129,6 +129,12 @@ async function uploads(req, res, next) {
       file_size: files[i].size,
       mime: files[i].mimetype,
       folder_id,
+
+      // ??ng b? cho mock data use-upload-file.ts
+      url: r.file_url,
+      type: files[i].mimetype,
+      size: files[i].size,
+      appUrl: `${process.env.APP_URL || ""}/media/${r.id}`,
     }));
 
     res.status(201).json(resp.length === 1 ? resp[0] : resp);

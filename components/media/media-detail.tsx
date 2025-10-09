@@ -65,7 +65,6 @@ export function MediaDetail({ item, onDelete }: Props) {
         a.remove();
     }
 
-
     return (
         <Drawer direction={isMobile ? 'bottom' : 'right'}>
             <DrawerTrigger asChild>

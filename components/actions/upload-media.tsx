@@ -5,7 +5,6 @@
 
 import { IconPlus } from '@tabler/icons-react';
 import * as React from 'react';
-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,13 +15,13 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-
-import { apiUploadMedia } from '@/lib/api';
 import { Checkbox } from '../ui/checkbox';
 import { TinyProgress } from '../ui/tinyProgress';
 import { useProgress } from '@/hooks/use-progress';
 import { MediaItem } from '@/types';
 import { toast } from 'sonner';
+import { apiUploadMedia } from '@/lib/api/media.api';
+import { useSession } from 'next-auth/react';
 
 type PickedFile = {
     file: File;
@@ -43,18 +42,17 @@ const ALLOWED = [
 ];
 
 type Props = {
-    currentFolderId?: number | null;
-    currentFolderSlug?: string | null;
-    onUploaded?: (uploaded: MediaItem[]) => void;
-    children?: React.ReactNode;
+    folder_id?: number | null | undefined;
+    callback?: (uploaded: MediaItem[]) => void; // gọi khi có file mới upload xong để reload list
 };
 
-export function UploadMediaDialog({
-    currentFolderId = null,
-    currentFolderSlug = null,
-    onUploaded,
-    children,
+export function UploadMedia({
+    callback,
+    folder_id,
 }: Props) {
+    const { data: session } = useSession();
+    const token = session?.accessToken as string | undefined;
+
     const [open, setOpen] = React.useState(false);
     const [files, setFiles] = React.useState<PickedFile[]>([]);
     const [uploading, setUploading] = React.useState(false);
@@ -140,9 +138,9 @@ export function UploadMediaDialog({
         try {
             const promises = validIdx.map((i) =>
                 apiUploadMedia([files[i].file], {
-                    folder_id: currentFolderId ?? undefined,
-                    folder_slug: currentFolderSlug ?? undefined,
+                    folder_id: folder_id,
                     is_background: isBackground,
+                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,  // <-- THÊM DÒNG NÀY
                     onProgress: (_pct, evt) => {
                         if (evt && evt.lengthComputable && evt.total > 0) {
                             const { loaded, total } = evt;
@@ -182,7 +180,7 @@ export function UploadMediaDialog({
             const okItems = results
                 .filter(r => r.status === 'fulfilled')
                 .flatMap((r: any) => r.value || []);
-            if (okItems.length) onUploaded?.(okItems);
+            if (okItems.length) callback?.(okItems);
 
             // XONG HẾT -> đóng modal + dọn preview
             toast.success('Upload hoàn tất');
@@ -221,12 +219,10 @@ export function UploadMediaDialog({
             }}
         >
             <DialogTrigger asChild>
-                {children ?? (
-                    <Button size="sm" variant="outline">
-                        <IconPlus />
-                        Upload Media
-                    </Button>
-                )}
+                <Button size="sm" variant="outline">
+                    <IconPlus />
+                    Upload Media
+                </Button>
             </DialogTrigger>
 
             <DialogContent className="max-w-screen-lg max-h-[85vh] p-0 overflow-hidden">

@@ -5,7 +5,8 @@
 "use client"
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useArticleEdit, useCategories } from '@/hooks/use-articles';
+import { useArticleEdit } from '@/hooks/use-articles';
+import { useCategories } from '@/hooks/use-categories';
 import { MetaPanel } from '@/components/news/MetaPanel';
 import { usePlateEditor } from 'platejs/react';
 import { EditorDescKit } from '@/components/editor/editor-desc-kit';

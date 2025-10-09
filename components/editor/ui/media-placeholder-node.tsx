@@ -57,7 +57,6 @@ export const PlaceholderElement = withHOC(
 
     const { isUploading, progress, uploadedFile, uploadFile, uploadingFile } =
       useUploadFile();
-    console.log("🚀 ~ PlaceholderElement ~ progress:", progress)
 
     const loading = isUploading && uploadingFile;
 

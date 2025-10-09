@@ -9,5 +9,6 @@ router.get("/:id", auth, ctrl.getArticle); // GET /article/:id
 router.post("/slug/:slug", auth, ctrl.checkSlugAvailability); // GET /article/slug/:slug
 router.post("/", auth, ctrl.postArticle); // POST /article
 router.put("/update/:id", auth, ctrl.updateArticleOne); // PUT /article/update/:id
+router.delete("/delete/:id", auth, ctrl.deleteArticleOne); // DELETE /article/delete/:id
 
 module.exports = router;

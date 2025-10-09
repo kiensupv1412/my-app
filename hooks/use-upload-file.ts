@@ -1,7 +1,11 @@
 // hooks/use-upload-file.ts
+'use client';
+
 import * as React from 'react';
+import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import { z } from 'zod';
+import { API_BASE } from '@/lib/http/constants';
 
 export type UploadedFile<Extra extends object = Record<string, never>> = {
     name: string;
@@ -23,27 +27,43 @@ interface UseUploadFileProps<Extra extends object = Record<string, never>>
         UploadFilesOptionsCompat,
         'headers' | 'onUploadBegin' | 'onUploadProgress' | 'skipPolling'
     > {
-    endpoint?: string;            // default: '/upload_media'
+    /** Đường dẫn tương đối hoặc tuyệt đối. Mặc định relative, hook sẽ tự ghép BASE_URL */
+    endpoint?: string; // default: '/media/upload'
     folder_id?: number | string | null;
+    folder_slug?: string | null;
+    is_background?: boolean | null;
     onUploadComplete?: (file: UploadedFile<Extra>) => void;
     onUploadError?: (error: unknown) => void;
-    autoResetMs?: number | null;  // null = không reset tự động
+    autoResetMs?: number | null; // null = không reset tự động
 }
 
 type PctArg = number | ((prev: number) => number);
 
 export function useUploadFile<Extra extends object = Record<string, never>>({
-    endpoint = 'http://localhost:4000/upload_media',
+    endpoint = '/media/upload',
     folder_id,
+    folder_slug,
+    is_background,
     onUploadComplete,
     onUploadError,
     autoResetMs = 800,
     ...props
 }: UseUploadFileProps<Extra> = {}) {
+    const { data: session } = useSession();
+    const token = (session as any)?.accessToken as string | undefined;
+
     const [uploadedFile, setUploadedFile] = React.useState<UploadedFile<Extra>>();
     const [uploadingFile, setUploadingFile] = React.useState<File>();
     const [progress, setProgress] = React.useState<number>(0);
     const [isUploading, setIsUploading] = React.useState(false);
+
+    // chuẩn hoá endpoint -> URL tuyệt đối (cần cho XHR)
+    const absEndpoint = React.useMemo(() => {
+        const base = (API_BASE || '').replace(/\/+$/, '');
+        if (/^https?:\/\//i.test(endpoint)) return endpoint; // đã tuyệt đối
+        const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        return base + path;
+    }, [endpoint]);
 
     const setPct = React.useCallback(
         (arg: PctArg) => {
@@ -67,25 +87,26 @@ export function useUploadFile<Extra extends object = Record<string, never>>({
             const form = new FormData();
             form.append('file', file);
             if (folder_id != null) form.append('folder_id', String(folder_id));
+            if (folder_slug) form.append('folder_slug', String(folder_slug).trim());
+            if (typeof is_background === 'boolean') form.append('is_background', String(is_background));
 
             const uploaded = await new Promise<UploadedFile<Extra>>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
-                xhr.open('POST', endpoint);
+                xhr.open('POST', absEndpoint);
 
-                // Không set 'Content-Type' cho FormData
-                if (props.headers) {
-                    for (const [k, v] of Object.entries(props.headers)) {
-                        if (k.toLowerCase() === 'content-type') continue;
-                        xhr.setRequestHeader(k, v);
-                    }
+                // headers: ưu tiên headers truyền vào; tự thêm Authorization nếu có token và chưa set
+                const headers: Record<string, string> = { ...(props.headers ?? {}) };
+                if (token && !headers['Authorization']) headers['Authorization'] = `Bearer ${token}`;
+                for (const [k, v] of Object.entries(headers)) {
+                    if (k.toLowerCase() === 'content-type') continue; // FormData tự set
+                    xhr.setRequestHeader(k, v);
                 }
 
                 xhr.upload.onprogress = (evt: ProgressEvent<EventTarget>) => {
                     if (evt.lengthComputable && evt.total > 0) {
                         setPct((evt.loaded / evt.total) * 100);
                     } else {
-                        // không biết total -> nhích nhẹ
-                        setPct(p => (p < 95 ? p + 1 : p));
+                        setPct(p => (p < 95 ? p + 1 : p)); // không có total -> nhích nhẹ
                     }
                 };
 
@@ -97,7 +118,16 @@ export function useUploadFile<Extra extends object = Record<string, never>>({
                             const data = (json.data ?? json) as UploadedFile<Extra>;
                             resolve(data);
                         } else {
-                            reject(new Error(xhr.responseText || `HTTP ${xhr.status}`));
+                            const msg =
+                                (() => {
+                                    try {
+                                        const j = JSON.parse(xhr.responseText || '{}');
+                                        return j?.message || j?.error;
+                                    } catch {
+                                        return undefined;
+                                    }
+                                })() || `HTTP ${xhr.status}`;
+                            reject(new Error(msg));
                         }
                     } catch (e) {
                         reject(e);
@@ -109,6 +139,7 @@ export function useUploadFile<Extra extends object = Record<string, never>>({
             });
 
             setUploadedFile(uploaded);
+            console.log("🚀 ~ uploadFile ~ uploaded:", uploaded)
             onUploadComplete?.(uploaded);
             return uploaded;
         } catch (error) {
@@ -116,7 +147,7 @@ export function useUploadFile<Extra extends object = Record<string, never>>({
             toast.error(msg || 'Something went wrong, please try again later.');
             onUploadError?.(error);
 
-            // Mock fallback (giữ UX)
+            // Fallback mock để UI không "toang"
             const mock = {
                 appUrl: `https://mock-app-url.com/${file.name}`,
                 name: file.name,
@@ -126,13 +157,14 @@ export function useUploadFile<Extra extends object = Record<string, never>>({
             } as UploadedFile<Extra>;
 
             for (let p = progress; p < 100; p += 2) {
+                // mượt progress
+                // eslint-disable-next-line no-await-in-loop
                 await new Promise(r => setTimeout(r, 16));
                 setPct(p + 2);
             }
             setUploadedFile(mock);
             return mock;
         } finally {
-            // để 100% hiển thị một lúc trước khi reset
             if (autoResetMs != null) {
                 setTimeout(() => {
                     setProgress(0);
@@ -155,6 +187,7 @@ export function getErrorMessage(err: unknown) {
     if (err instanceof Error) return err.message;
     return unknownError;
 }
+
 export function showErrorToast(err: unknown) {
     return toast.error(getErrorMessage(err));
 }

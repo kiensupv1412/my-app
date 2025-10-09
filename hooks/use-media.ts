@@ -1,11 +1,9 @@
-/*
- * path: hooks/use-media.ts
- */
 'use client';
 import useSWR from 'swr';
-import { apiListMedia } from '@/lib/api';
+import { useSession } from 'next-auth/react';
+import { swrFetcher, apiFetch, type AppError } from '@/lib/http';
 import type { PaginationMeta, MediaItem } from '@/types';
-import type { AppError } from '@/lib/http'; // [CHANGE] dùng AppError chuẩn hoá
+import { k } from '@/lib/keys';
 
 type MediaResp = { data: MediaItem[]; meta: PaginationMeta };
 
@@ -13,40 +11,57 @@ export function useMediaPage(
     page: number,
     limit: number,
     folderId?: number | null,
-    opts?: { onError?: (e: AppError) => void } // [OPTIONAL] cho phép UI gắn side-effect
+    opts?: { onError?: (e: AppError) => void }
 ) {
-    // [KEEP] key ổn định, không đổi hành vi
-    const key = ['media', page, limit, folderId ?? 'all'] as const;
+    const { data: session } = useSession();
+    const token = session?.accessToken ?? null;
 
+    const key = token ? k.media(page, limit, (folderId ?? 'all') as any, token) : null;
+
+    // Lấy mutate riêng (không dùng swr.mutate)
     const {
+        data: swrData,
+        error,
+        isLoading,
+        mutate,               // << dùng biến mutate này
+        isValidating,
+    } = useSWR<MediaResp, AppError>(key, (key, ctx) => swrFetcher(key, token, ctx), {
+        keepPreviousData: true,
+        onError: opts?.onError,
+    });
+
+    const data = swrData?.data ?? [];
+    const meta: PaginationMeta = {
+        page: Number(swrData?.meta?.page ?? page),
+        limit: Number(swrData?.meta?.limit ?? limit),
+        pages: Math.max(1, Number(swrData?.meta?.pages ?? 1) || 1),
+        total: typeof swrData?.meta?.total === 'number' ? swrData.meta.total : 0,
+        prev: swrData?.meta?.prev ?? null,
+        next: swrData?.meta?.next ?? null,
+    };
+
+    // DELETE — API OK rồi mới update UI (không optimistic)
+    async function remove(id: number | string) {
+        if (!token) throw new Error('Chưa đăng nhập');
+        await apiFetch(`/media/${id}`, { method: 'DELETE', token }); // chờ server OK
+        await mutate((cur) => {
+            if (!cur) return cur;
+            const next = (cur.data ?? []).filter((m) => String(m.id) !== String(id));
+            const total = Math.max(0, (cur.meta?.total ?? 0) - 1);
+            return { ...cur, data: next, meta: { ...(cur.meta ?? {}), total } };
+        }, false);
+        // hoặc dùng revalidate thật nếu muốn chắc tuyệt đối:
+        // await mutate(undefined, true);
+    }
+
+    return {
         data,
+        meta,
         error,
         isLoading,
         isValidating,
+        canRetry: !!error?.retryable,
         mutate,
-    } = useSWR<MediaResp, AppError>(
-        key,
-        () => apiListMedia({ page, limit, folder_id: folderId ?? undefined }),
-        {
-            onError: (e) => opts?.onError?.(e), // [OPTIONAL] không toast ở hook, chỉ pass ra
-        }
-    );
-
-    return {
-        data: data?.data ?? [],
-        meta:
-            data?.meta ?? {
-                page,
-                limit,
-                pages: 1,
-                total: 0,
-                prev: null,
-                next: null,
-            },
-        error,                           // [CHANGE] AppError => UI đọc message/kind/status
-        canRetry: !!error?.retryable,    // [ADD] tiện cho nút “Thử lại”
-        mediaLoading: isLoading,         // [KEEP] không phá call-site
-        isValidating,                    // [ADD] phân biệt loading lần đầu vs revalidate
-        mutate,
+        remove,
     };
 }

@@ -7,17 +7,19 @@ import { Button } from "../ui/button";
 import { Article, ArticleUpdatePayload, Categories, MediaItem, Mode, STATUS } from "@/types";
 import { useEffect, useMemo, useState } from "react";
 import { handlePreview, plateToHtml } from "@/lib/editorManeger";
-import { checkSlugExists, createArticle, updateArticle } from "@/hooks/use-articles";
 import { useRouter } from 'next/navigation'
 import PickThumb from "./PickThumb";
 import { normalizeSlug, safeStringify } from "@/lib/utils";
 import { z } from 'zod';
-import { apiUploadMedia } from "@/lib/api";
 import { toast } from "sonner";
 import { TagInput } from "../ui/tag-input";
+import { checkSlugExists, createArticle, updateArticle } from "@/lib/api";
+import { apiUploadMedia } from "@/lib/api";
+import { useSession } from "next-auth/react";
 
 const FormSchema = z.object({
     title: z.string().trim().min(1, 'Tiêu đề bắt buộc').max(160),
+    slug: z.string().trim().min(1, 'Slug bắt buộc'),
     category_id: z.string().min(1, 'Chọn chuyên mục'),
     status: z.enum(STATUS, { errorMap: () => ({ message: 'Trạng thái không hợp lệ' }) }),
 });
@@ -27,8 +29,11 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
     { mode: Mode, article: Article | null, categories: Categories, descEditor: any, contentEditor: any }) {
 
     const DEFAULT_THUMB_URL = '/thumb-1920x1080.png';
-    const router = useRouter();
 
+    const { data: session } = useSession();
+    const token = session?.accessToken ?? null;
+
+    const router = useRouter();
 
     const initialForm = useMemo(
         () => ({
@@ -93,7 +98,7 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
 
         const finalThumbId = await ensureThumbId();
 
-        const availableSlug = await checkSlugExists(form.slug, article?.id);
+        const availableSlug = await checkSlugExists(form.slug, article?.id, token);
         if (!availableSlug.available)
             return Promise.reject(new Error('Lỗi kiểm tra slug tồn tại'));
 
@@ -130,11 +135,11 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
             const isCreate = mode === 'create';
 
             if (isCreate) {
-                await createArticle(payload);
+                await createArticle(payload, token);
                 toast.success('Đã tạo bài viết');
                 router.push('/news');
             } else {
-                await updateArticle(String(article?.id), payload);
+                await updateArticle(String(article?.id), payload, token);
                 toast.success('Đã cập nhật bài viết');
             }
         } catch (e: any) {
@@ -154,7 +159,7 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
         const file = new File([blob], file_name, { type: blob.type || 'image/png' });
         formData.append('file', file, file.name);
 
-        const res = await apiUploadMedia([file]);
+        const res = await apiUploadMedia([file], { token });
         if (!res || !res.length || !res[0].id) throw new Error('Upload không thành công');
         return res[0];
     }

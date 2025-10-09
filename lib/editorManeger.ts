@@ -2,10 +2,11 @@
  * path: lib/editorManeger.ts
  */
 
-import { BaseEditorKit } from "@/components/editor/editor-base-kit";
+import { EditorBaseKit } from "@/components/editor/editor-base-kit";
 import { createPlateEditor, ParagraphPlugin } from "platejs/react";
-import { parseHtmlElement, serializeHtml } from "platejs";
+import { createSlateEditor, parseHtmlElement, serializeHtml } from "platejs";
 import { ParagraphElement } from "@/components/editor/ui/paragraph-node";
+import { htmlToSlate, slateToHtml } from '@slate-serializers/html';
 
 export async function handlePreview(editor: any) {
     const html = await plateToHtml(editor)
@@ -31,11 +32,15 @@ export async function handlePreview(editor: any) {
 }
 
 export async function plateToHtml(editor: any) {
-    const serializeEditor = createPlateEditor({
-        plugins: BaseEditorKit,
+    const serializeEditor = createSlateEditor({
+        plugins: EditorBaseKit,
         value: editor.children,
     });
 
+    console.log("🚀 ~ plateToHtml ~ editor.children:", editor.children)
+    const html = await slateToHtml(editor.children);
+    console.log("🚀 ~ plateToHtml ~ html:", html)
+    // fix lại serializeCleanHtml xử lý thẻ figure, img  -> xây dựng bản preview
     return serializeCleanHtml(await serializeHtml(serializeEditor));
 }
 

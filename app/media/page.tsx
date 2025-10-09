@@ -6,13 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { confirmDelete } from '@/components/modals/confirm-delete-service';
 import { MediaDetail } from '@/components/media/media-detail';
 import { useMediaPage } from '@/hooks/use-media';
-import FolderHeader from '@/components/media/FolderHeader';
-import { apiDeleteMedia } from '@/lib/api';
 import Pagination from '@/components/ui/pagination';
 import { usePageLimit, usePagination } from '@/hooks/usePagination';
 import { useFolders } from '@/hooks/use-folders';
 import { Folder } from '@/types';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { IconChevronLeft } from '@tabler/icons-react';
+import { UploadMedia } from '@/components/actions/upload-media';
 
 /*
  * path: app/media/page.tsx
@@ -39,8 +40,14 @@ function MediaPageInner() {
         return Number.isFinite(n) ? n : null;
     }, [sp]);
 
-    const { data: media = [], meta, mediaLoading, mutate } = useMediaPage(page, limit, folderId);
+    const { folders, foldersError, foldersLoading } = useFolders();
 
+    const currentFolder = React.useMemo(() => {
+        return folders.find((folder) => folder.id === folderId) ?? null;
+    }, [folderId, folders]);
+
+    const { data: media = [], meta, mediaLoading, mutate, remove } =
+        useMediaPage(page, limit, folderId);
     const pagination = usePagination({
         limit,
         setLimit,
@@ -65,14 +72,13 @@ function MediaPageInner() {
                 return { ...cur, data: nextData, meta: { ...(cur.meta || {}), total: nextTotal } };
             }, false);
 
-            await apiDeleteMedia(id);
+            await remove(id);
             toast.success('Đã xoá ảnh');
         } catch (e: any) {
             toast.error(e?.message ?? 'Xoá thất bại');
         }
     }
 
-    const { folders, foldersError, foldersLoading } = useFolders();
 
     function FolderCard({ folder, onOpen }: { folder: Folder; onOpen?: (id: number) => void }) {
         const itemText =
@@ -114,16 +120,31 @@ function MediaPageInner() {
     return (
         <div className="flex flex-col flex-1 min-h-0 p-4">
             <div className="flex flex-col flex-1 min-h-0 space-y-4 overflow-hidden">
-                <FolderHeader
-                    currentFolderId={folderId}
-                    currentFolderName={null}
-                    onBack={folderId ? () => router.push('/media') : undefined}
-                    uploadTargetFolderId={folderId}
-                    onUploaded={() => {
-                        mutate(undefined, true);
-                    }}
-                />
-
+                <div className="flex justify-between">
+                    <div className="flex items-center">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={folderId ? () => router.push('/media') : undefined}
+                            className="gap-1"
+                        >
+                            <IconChevronLeft className="h-4 w-4" />
+                            All media
+                        </Button>
+                        <div className="text-sm text-muted-foreground">
+                            <span className="mx-2">/</span>
+                            <span className="font-medium">
+                                {folderId ? currentFolder?.name ?? '' : 'All media'}
+                            </span>
+                        </div>
+                    </div>
+                    <UploadMedia
+                        folder_id={folderId}
+                        callback={() => {
+                            mutate(undefined, true);
+                        }}
+                    />
+                </div>
                 {/* Không có folderId -> hiển thị danh sách folder */}
                 {!folderId && (
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
@@ -148,7 +169,7 @@ function MediaPageInner() {
                                 <FolderCard
                                     key={folder.id}
                                     folder={folder}
-                                    onOpen={(id) => router.push(`/media?folder=${id}&page=1&limit=10`)}
+                                    onOpen={(id) => router.push(`/media?folder=${id}`)}
                                 />
                             ))}
                     </div>

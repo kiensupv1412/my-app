@@ -19,7 +19,7 @@ import { BaseTableKit } from './plugins/table-base-kit';
 import { BaseTocKit } from './plugins/toc-base-kit';
 import { BaseToggleKit } from './plugins/toggle-base-kit';
 
-export const BaseEditorKit = [
+export const EditorBaseKit = [
   ...BaseBasicBlocksKit,
   ...BaseCodeBlockKit,
   ...BaseTableKit,

@@ -1,49 +1,29 @@
-/*
- * path: hooks/useArticles.ts
- */
 'use client';
+import useSWR from 'swr';
+import { useSession } from 'next-auth/react';
+import { swrFetcher, apiFetch, type AppError } from '@/lib/http';
+import type { Articles, Article, PaginationMeta, } from '@/types';
 
-import useSWR, { mutate } from 'swr';
-import { fetcher } from '@/lib/http';
-import { Article, Articles, Categories, PaginationMeta } from '@/types';
+/* ---------- (A) LIST + DELETE ---------- */
+export function useArticlesPage(page = 1, limit = 10, filters: Record<string, any> = {}) {
+    const { data: session } = useSession();
+    const token = session?.accessToken ?? null;
 
-// const BASE_URL = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:4000";
-const BASE_URL = '';
+    const qs: Record<string, any> = { page, limit };
+    for (const [k, v] of Object.entries(filters)) {
+        if (v !== undefined && v !== null && String(v).trim().length) qs[k] = String(v).trim();
+    }
 
-export function useArticleEdit(id?: string | number) {
-    const shouldFetch = !!id;
-    const { data }: { data: Article | null } = useSWR(
-        shouldFetch ? `${BASE_URL}/article/${id}` : null,
-        fetcher,
-        { revalidateOnFocus: false }
+    // SWR key (relative path + params + token)
+    const key = token ? ['/article', qs, token] : null;
+
+    const { data, error, isLoading, mutate } = useSWR<any, AppError>(
+        key,
+        (key, ctx) => swrFetcher(key, token, ctx),
+        { keepPreviousData: true, dedupingInterval: 300 }
     );
 
-    return { article: data };
-}
-
-export function useCategories() {
-    const { data, error, isLoading } = useSWR(BASE_URL + '/article/categories', fetcher, { revalidateOnFocus: false });
-    return { categories: data as Categories ?? [], error, isLoading };
-}
-
-export function useArticlesPage(page = 1, limit = 10, filters: Record<string, any> = {}) {
-    const qs = new URLSearchParams();
-    qs.set('page', String(page));
-    qs.set('limit', String(limit));
-
-    Object.entries(filters).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && String(v).length) qs.set(k, String(v));
-    });
-
-    const key = `${BASE_URL}/article?${qs.toString()}`;
-    const { data, error, isLoading } = useSWR(key, fetcher, {
-        revalidateOnFocus: false,
-        keepPreviousData: true,
-        dedupingInterval: 300,
-    });
-
     const items: Articles = Array.isArray(data?.posts) ? data.posts : [];
-
     const rawLimit = data?.meta?.limit ?? limit;
     const parsedLimit = rawLimit === 'all' ? limit : Number(rawLimit) || limit;
 
@@ -56,76 +36,42 @@ export function useArticlesPage(page = 1, limit = 10, filters: Record<string, an
         next: data?.meta?.next ?? null,
     };
 
-    return { data: items, meta, error, isLoading };
+    // --- ONLY DELETE (chỉ cập nhật UI sau khi API OK) ---
+    async function remove(id: number | string) {
+        if (!token) throw new Error('Chưa đăng nhập');
+
+        // 1) Gọi API xoá trước
+        await apiFetch(`/article/delete/${id}`, { method: 'DELETE', token });
+        // Nếu backend là /article/delete/:id thì sửa lại path cho đúng!
+
+        // 2) API OK rồi mới cập nhật cache local (hoặc revalidate từ server)
+        // Cách A: cập nhật cache tại chỗ (nhanh, không gọi lại server)
+        await mutate((cur: any) => {
+            if (!cur) return cur;
+            const nextPosts = (cur.posts ?? []).filter((x: any) => String(x.id) !== String(id));
+            const nextTotal = Math.max(0, (cur.meta?.total ?? 0) - 1);
+            return { ...cur, posts: nextPosts, meta: { ...(cur.meta || {}), total: nextTotal } };
+        }, false);
+
+        // Cách B (tuỳ chọn): thay vì cập nhật tại chỗ, gọi lại server cho chắc dữ liệu
+        // await mutate(); 
+    }
+
+    return { data: items, meta, error, isLoading, mutate, remove };
 }
 
-export async function createArticle(newItem: any) {
-    const key = BASE_URL + '/article';
+/* ---------- (B) DETAIL + CREATE/UPDATE ---------- */
+export function useArticleEdit(id?: string | number) {
+    const { data: session } = useSession();
+    const token = session?.accessToken ?? null;
 
-    await mutate(
+    const key = id && token ? [`/article/${id}`, token] : null;
+
+    const { data, error, isLoading, mutate } = useSWR<Article, AppError>(
         key,
-        async (current: { data: any[]; meta?: any } | undefined) => {
-            const rows = current?.data ?? [];
-            const meta = current?.meta;
-
-            const res = await fetch(key, {
-                method: 'POST',
-                body: JSON.stringify(newItem),
-                headers: { 'Content-Type': 'application/json' },
-            });
-            const created = await res.json();
-            return { data: [created, ...rows], meta };
-        },
-        { revalidate: false }
+        (key, ctx) => swrFetcher(key, token, ctx),
+        { revalidateOnFocus: false }
     );
-}
 
-export async function updateArticle(id: string | number, patch: any) {
-    const listKey = BASE_URL + '/article';
-    const apiUpdateUrl = BASE_URL + `/article/update/${id}`;
-
-    const res = await fetch(apiUpdateUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patch),
-    });
-
-    const serverData = await res.json();
-
-    // Cập nhật cache local cho đồng bộ
-    mutate(listKey, (current: any) => {
-        if (!current) return current;
-
-        if (Array.isArray(current)) {
-            return current.map((x) => (String(x.id) === String(id) ? serverData : x));
-        }
-
-        if (Array.isArray(current.rows)) {
-            return {
-                ...current,
-                rows: current.rows.map((x: any) =>
-                    String(x.id) === String(id) ? serverData : x
-                ),
-            };
-        }
-
-        return current;
-    }, false);
-
-    return serverData;
-}
-
-export async function checkSlugExists(slug: string, excludeId: number | undefined) {
-    const res = await fetch(`${BASE_URL}/article/slug/${slug}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, exclude_id: excludeId ?? null }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.message || "Slug check failed");
-    return data as {
-        available: boolean;
-        slug: string;
-        conflict_id: number | null;
-    };
+    return { article: data ?? null, error, isLoading, mutate };
 }

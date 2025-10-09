@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { BaseEditorKit } from '@/components/editor/editor-base-kit';
+import { EditorBaseKit } from '@/components/editor/editor-base-kit';
 
 import { EditorStatic } from './editor-static';
 import { ToolbarButton } from '@/components/editor/ui/toolbar';
@@ -97,7 +97,7 @@ export function ExportToolbarButton(props: DropdownMenuProps) {
 
   const exportToHtml = async () => {
     const editorStatic = createSlateEditor({
-      plugins: BaseEditorKit,
+      plugins: EditorBaseKit,
       value: editor.children,
     });
 

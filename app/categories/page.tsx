@@ -15,8 +15,8 @@ import { toast } from "sonner"; // hoặc hook toast mày có sẵn
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 const API = {
-    tags: (q = "") => `/api/admin/tags${q ? `?q=${encodeURIComponent(q)}` : ""}`,
-    categories: (q = "") => `/api/admin/categories${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+    tags: (q = "") => `/api/_s/admin/tags${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+    categories: (q = "") => `/api/_s/admin/categories${q ? `?q=${encodeURIComponent(q)}` : ""}`,
 };
 
 export default function TaxonomyPanel() {
@@ -37,7 +37,7 @@ export default function TaxonomyPanel() {
 
     const onCreateTag = async () => {
         if (!tagName.trim()) return toast.error("Tên tag bắt buộc");
-        const res = await fetch("/api/admin/tags", {
+        const res = await fetch("/api/_s/admin/tags", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: tagName.trim(), description: tagDesc || null }),
@@ -51,7 +51,7 @@ export default function TaxonomyPanel() {
 
     const onCreateCategory = async () => {
         if (!catName.trim()) return toast.error("Tên category bắt buộc");
-        const res = await fetch("/api/admin/categories", {
+        const res = await fetch("/api/_s/admin/categories", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

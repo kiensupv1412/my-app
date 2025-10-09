@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { useCategories, useArticlesPage } from '@/hooks/use-articles';
+import { useArticlesPage } from '@/hooks/use-articles';
+import { useCategories } from '@/hooks/use-categories';
 import { usePageLimit, usePagination } from '@/hooks/usePagination';
 import {
   IconChevronDown,
@@ -29,12 +30,11 @@ import {
   Tabs, TabsContent, TabsList, TabsTrigger
 } from "@/components/ui/tabs"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { confirmDelete } from '@/components/modals/confirm-delete-service';
 import { MediaThumb } from '@/components/media/media-thumb';
 import Pagination from '@/components/ui/pagination';
-import { ArrowUpDown, ArrowUpWideNarrow, ArrowDownWideNarrow } from "lucide-react"
 import SortButton from '@/components/ui/SortButton';
+import { toast } from 'sonner';
 /*
  * path: app/news/page.tsx
  */
@@ -43,13 +43,13 @@ export default function Page() {
 
   const [filters, setFilters] = React.useState<{ category_id?: number; title?: string }>({});
   const { page, setPage, limit, setLimit } = usePageLimit(1, 10);
-  const { data: items = [], meta, isLoading } = useArticlesPage(page, limit, filters);
+  const { data: items = [], meta, isLoading, remove } = useArticlesPage(page, limit, filters);
   const pagination = usePagination({ meta, limit, setLimit, page, setPage });
 
   const table = useReactTable({
     data: items,
     columns: getColumns(),
-    meta: { categories, setFilters },
+    meta: { categories, setFilters, onDelete: remove },
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -272,13 +272,14 @@ function getColumns(): ColumnDef<z.infer<typeof tableSchema>>[] {
       cell: ({ row, table }) => (
         <ActionsCell
           id={row.original.id}
+          onDelete={table.options.meta?.onDelete}
         />
       )
     }
   ]
 }
 
-function ActionsCell({ id }: { id: number }) {
+function ActionsCell({ id, onDelete }: { id: number; onDelete?: (id: number) => Promise<any> }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -292,7 +293,28 @@ function ActionsCell({ id }: { id: number }) {
         </DropdownMenuItem>
         <DropdownMenuItem>Favorite</DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive"  >Delete</DropdownMenuItem>
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={async () => {
+            const confirmed = await confirmDelete({
+              title: 'Xoá bài viết',
+              description: 'Bạn có chắc chắn muốn xoá bài viết này?',
+              confirmText: 'Xoá',
+              cancelText: 'Huỷ',
+            });
+            if (!confirmed) return;
+
+            try {
+              if (!onDelete) throw new Error('Thiếu handler xoá');
+              await onDelete(id);                 // << gọi remove từ hook
+              toast.success('Đã xoá bài viết');
+            } catch (error: any) {
+              toast.error(error?.message ?? 'Xoá bài viết thất bại');
+            }
+          }}
+        >
+          Delete
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

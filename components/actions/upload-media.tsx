@@ -137,7 +137,7 @@ export function UploadMedia({
 
         try {
             const promises = validIdx.map((i) =>
-                apiUploadMedia([files[i].file], {
+                apiUploadMedia(files[i].file, {
                     folder_id: folder_id,
                     is_background: isBackground,
                     headers: token ? { Authorization: `Bearer ${token}` } : undefined,  // <-- THÊM DÒNG NÀY

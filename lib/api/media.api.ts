@@ -1,40 +1,69 @@
 import { MediaItem, PaginationMeta } from "@/types";
-import { apiFetch, AppError } from "../http";
+import { AppError } from "../http";
 import { API_BASE } from "../http/constants";
+import { createFormData } from "../utils";
+import { chain } from "lodash";
+
+
+// Controller: media.controller.js
+
+export async function apiUpdateMedia(id: number, updateData: Partial<MediaItem>, token: string) {
+    if (!token) throw new Error('Chưa đăng nhập');
+
+    // Gửi request PUT đến API để cập nhật media
+    try {
+        const response = await fetch(`/media/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(updateData),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData?.error || 'Error updating media');
+        }
+
+        const updatedMedia = await response.json();
+
+        // Trả về dữ liệu đã được cập nhật từ server
+        return updatedMedia;
+    } catch (e) {
+        console.error("[media.update] Error", e);
+        throw e;
+    }
+}
+
+
 
 /** Upload 1 hoặc nhiều file. Có thể truyền folder_id hoặc folder_slug.
  *  Dùng XHR để có onProgress => cần URL tuyệt đối (BASE_URL).
  *  Tự thêm Authorization nếu cung cấp token (trừ khi headers đã set sẵn).
  */
 export async function apiUploadMedia(
-    files: File[],
+    file: File,
     opts?: {
         folder_id?: number | null;
         folder_slug?: string | null;
         is_background?: boolean | null;
         headers?: Record<string, string>;
-        token?: string | null; // <- thêm token ở đây
+        token?: string | null;
         onProgress?: (pct: number, evt: ProgressEvent) => void;
     }
 ) {
-    if (!files?.length) return [];
 
-    const url = API_BASE + (files.length === 1 ? "/media/upload" : "/media/uploads");
-    const fd = new FormData();
+    const fd = createFormData({
+        file: file,
+        folder_id: opts?.folder_id,
+        is_background: opts?.is_background,
+        folder_slug: opts?.folder_slug
+    });
 
-    if (files.length === 1) fd.append("file", files[0]);
-    else files.forEach((f) => fd.append("files", f));
+    const url = API_BASE + "/media/upload"; // Đảm bảo gửi tới đúng URL
 
-    if (Object.prototype.hasOwnProperty.call(opts ?? {}, "folder_id")) {
-        const fid = opts?.folder_id;
-        if (fid === null) fd.append("folder_id", "null");
-        else if (typeof fid === "number" && Number.isFinite(fid)) fd.append("folder_id", String(fid));
-    }
-    if (opts?.folder_slug) fd.append("folder_slug", String(opts.folder_slug).trim());
-    if (typeof opts?.is_background === "boolean")
-        fd.append("is_background", String(opts.is_background));
-
-    const items = await new Promise<any[]>((resolve, reject) => {
+    const item = await new Promise<any>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", url);
 
@@ -92,10 +121,10 @@ export async function apiUploadMedia(
         };
 
         xhr.onerror = () => reject(new AppError("Network error", "network", { retryable: true }));
-        xhr.send(fd);
+        xhr.send(fd); // Gửi FormData chứa file
     });
 
-    return items;
+    return item; // Trả về kết quả của upload file
 }
 
 

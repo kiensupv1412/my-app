@@ -4,7 +4,7 @@
  */
 const path = require("path");
 const sanitize = require("sanitize-filename");
-const { PUBLIC_DIR } = require("./paths");
+const { PUBLIC_DIR, UPLOADS_DIR } = require("./paths");
 
 /** Chuẩn hoá slug thư mục, ngăn path traversal */
 function sanitizeSlug(input) {
@@ -50,7 +50,7 @@ function safeFileName(originalName) {
 /** Convert absolute fs path -> URL public tương đối (bắt đầu bằng /) */
 function publicUrlFromAbs(absPath) {
   const rel = path.relative(PUBLIC_DIR, absPath).split(path.sep).join("/");
-  return "/" + rel.replace(/^\/+/, "");
+  return "/" + rel.replace(/^\/+/, ""); // Đảm bảo URL bắt đầu bằng "/"
 }
 
 /** Chuẩn hoá đường dẫn public tương đối */

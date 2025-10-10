@@ -1,7 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
-import { swrFetcher, apiFetch, type AppError } from '@/lib/http';
+import { swrFetcher, type AppError, http } from '@/lib/http';
 import type { Articles, Article, PaginationMeta, } from '@/types';
 
 /* ---------- (A) LIST + DELETE ---------- */
@@ -41,7 +41,7 @@ export function useArticlesPage(page = 1, limit = 10, filters: Record<string, an
         if (!token) throw new Error('Chưa đăng nhập');
 
         // 1) Gọi API xoá trước
-        await apiFetch(`/article/delete/${id}`, { method: 'DELETE', token });
+        await http.delete(`/article/delete/${id}`, { method: 'DELETE', token });
         // Nếu backend là /article/delete/:id thì sửa lại path cho đúng!
 
         // 2) API OK rồi mới cập nhật cache local (hoặc revalidate từ server)

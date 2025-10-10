@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { UploadMedia } from '@/components/actions/upload-media';
+import { FolderOpenDot } from 'lucide-react';
 
 /*
  * path: app/media/page.tsx
@@ -40,13 +41,13 @@ function MediaPageInner() {
         return Number.isFinite(n) ? n : null;
     }, [sp]);
 
-    const { folders, foldersError, foldersLoading } = useFolders();
+    const { folders, foldersLoading } = useFolders();
 
     const currentFolder = React.useMemo(() => {
         return folders.find((folder) => folder.id === folderId) ?? null;
     }, [folderId, folders]);
 
-    const { data: media = [], meta, mediaLoading, mutate, remove } =
+    const { data: media = [], meta, isLoading, mutate, remove } =
         useMediaPage(page, limit, folderId);
     const pagination = usePagination({
         limit,
@@ -122,15 +123,23 @@ function MediaPageInner() {
             <div className="flex flex-col flex-1 min-h-0 space-y-4 overflow-hidden">
                 <div className="flex justify-between">
                     <div className="flex items-center">
-                        <Button
+                        {folderId ? <Button
                             size="sm"
                             variant="outline"
-                            onClick={folderId ? () => router.push('/media') : undefined}
+                            onClick={() => { router.push('/media'); }}
                             className="gap-1"
                         >
                             <IconChevronLeft className="h-4 w-4" />
-                            All media
-                        </Button>
+                        </Button> :
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1"
+                            >
+                                <FolderOpenDot className="h-4 w-4" />
+                            </Button>
+                        }
+
                         <div className="text-sm text-muted-foreground">
                             <span className="mx-2">/</span>
                             <span className="font-medium">
@@ -164,7 +173,6 @@ function MediaPageInner() {
                         </button>
 
                         {!foldersLoading &&
-                            folders?.length &&
                             folders.map((folder: Folder) => (
                                 <FolderCard
                                     key={folder.id}
@@ -177,39 +185,23 @@ function MediaPageInner() {
 
                 {/* MEDIA GRID */}
                 <div className="flex-1 min-h-0 overflow-y-auto">
-                    <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable] content-start grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 flex-1">
-                        {media ? (
-                            media.map((m) => (
-                                <MediaDetail
-                                    key={m.id}
-                                    item={{
-                                        id: m.id,
-                                        name: m.name,
-                                        file_name: m.file_name,
-                                        file_url: m.file_url,
-                                        file_size: m.file_size,
-                                        mime: m.mime,
-                                        alt: m.alt,
-                                        caption: m.caption,
-                                        thumbnail: m.thumbnail,
-                                        height: m.height,
-                                        width: m.width,
-                                        created_at: m.created_at,
-                                        updated_at: m.updated_at,
-                                    }}
-                                    onDelete={handleDelete}
-                                />
-                            ))
-                        ) : (
-                            <div className="col-span-full py-6 text-center text-sm text-muted-foreground">Đang tải…</div>
-                        )}
-
-                        {!mediaLoading && media.length === 0 && (
-                            <div className="col-span-full py-6 text-center text-sm text-muted-foreground">
-                                {folderId ? 'Không có ảnh nào.' : 'Không có mục nào.'}
-                            </div>
-                        )}
-                    </div>
+                    {isLoading ? (
+                        <div className="col-span-full py-6 text-center text-sm text-muted-foreground">Đang tải media...</div>
+                    ) : (
+                        <div className="h-full min-h-0 overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable] content-start grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 flex-1">
+                            {media ? (
+                                media.map((item) => (
+                                    <MediaDetail
+                                        key={item.id}
+                                        folders={folders}
+                                        item={item}
+                                        onDelete={handleDelete}
+                                    />
+                                ))
+                            ) : (
+                                <div className="col-span-full py-6 text-center text-sm text-muted-foreground">Đang tải…</div>
+                            )}
+                        </div>)}
                 </div>
             </div>
 

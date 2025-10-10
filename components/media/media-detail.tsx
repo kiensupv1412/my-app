@@ -9,41 +9,30 @@ import { useIsMobile } from '@/hooks/use-mobile'; // hook của bạn
 import { IconCopy, IconDownload, IconTrash } from '@tabler/icons-react';
 import { z } from 'zod';
 import React from 'react';
-
-// schema giống bạn đã định nghĩa
-export const schemaMedia = z.object({
-    id: z.number(),
-    name: z.string(),
-    file_name: z.string(),
-    file_url: z.string().url(),
-    file_size: z.number().nullable().optional(),
-    mime: z.string(),
-    alt: z.string().nullable().optional(),
-    caption: z.string().nullable().optional(),
-    thumbnail: z.string().nullable().optional(),
-    height: z.number().nullable().optional(),
-    width: z.number().nullable().optional(),
-    created_at: z.any().optional(),
-    updated_at: z.any().optional(),
-});
-type MediaItem = z.infer<typeof schemaMedia>;
+import { SquareArrowOutUpRight } from 'lucide-react';
+import Link from 'next/link';
+import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuContent } from "@/components/ui/dropdown-menu";
+import { Folders, MediaItem } from '@/types';
 
 type Props = {
+    folders: Folders;
     item: MediaItem;
     onDelete: (id: number) => void;
 };
 
-function toSize(n?: number | null) {
-    const v = typeof n === 'number' ? n : 0;
-    if (v < 1024) return v + ' B';
-    if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' KB';
-    if (v < 1024 * 1024 * 1024) return (v / 1024 / 1024).toFixed(1) + ' MB';
-    return (v / 1024 / 1024 / 1024).toFixed(1) + ' GB';
-}
+
 /*
  * path: components/media/media-detail.tsx
  */
-export function MediaDetail({ item, onDelete }: Props) {
+export function MediaDetail({ folders, item, onDelete }: Props) {
+    // Nếu item.folder_id là null, chọn 'uploads' làm giá trị mặc định
+    const [selectedFolderId, setSelectedFolderId] = React.useState(item.folder_id ?? 'uploads');
+
+    // Hàm để xử lý khi chọn folder
+    const handleSelectFolder = (folderId: string | number) => {
+        setSelectedFolderId(folderId);
+    };
+
     const isMobile = useIsMobile();
     const src = item.thumbnail ? item.thumbnail : item.file_url;
 
@@ -51,13 +40,12 @@ export function MediaDetail({ item, onDelete }: Props) {
         try {
             await navigator.clipboard.writeText(item.file_url);
         } catch (e) {
-            console.error('Copy URL error:', e);
+            console.error("Copy URL error:", e);
         }
     }
 
     function downloadHref() {
-        // dùng thẻ <a download> thay vì mở new tab
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = item.file_url;
         a.download = item.file_name || item.name;
         document.body.appendChild(a);
@@ -65,13 +53,13 @@ export function MediaDetail({ item, onDelete }: Props) {
         a.remove();
     }
 
+    // Tìm folder từ folders dựa trên selectedFolderId
+    const selectedFolder = folders.find((folder) => folder.id === selectedFolderId) || { name: 'uploads' };
+
     return (
-        <Drawer direction={isMobile ? 'bottom' : 'right'}>
+        <Drawer direction={isMobile ? "bottom" : "right"}>
             <DrawerTrigger asChild>
-                <div
-                    className="group relative block bg-background"
-                    title={item.name}
-                >
+                <div className="group relative block bg-background" title={item.name}>
                     <div className="aspect-square w-full">
                         <img
                             src={src}
@@ -79,7 +67,7 @@ export function MediaDetail({ item, onDelete }: Props) {
                             className="h-full w-full rounded-sm object-cover transition-transform duration-300 group-hover:scale-105"
                             onError={(e) => {
                                 const el = e.currentTarget as HTMLImageElement;
-                                el.src = '/thumb-default.jpeg';
+                                el.src = "/thumb-default.jpeg";
                             }}
                         />
                     </div>
@@ -92,77 +80,115 @@ export function MediaDetail({ item, onDelete }: Props) {
                     </div>
                 </div>
             </DrawerTrigger>
-            <DrawerContent className={isMobile ? 'max-h-[85vh]' : 'max-w-[720px]'}>
+
+            <DrawerContent className={isMobile ? "max-h-[85vh]" : "max-w-[768px]"}>
                 <DrawerHeader className="gap-1">
-                    <DrawerTitle className="truncate">{item.name}</DrawerTitle>
-                    <DrawerDescription>Preview &amp; thông tin tập tin</DrawerDescription>
+                    <DrawerTitle className="truncate"> </DrawerTitle>
+                    <DrawerDescription> </DrawerDescription>
                 </DrawerHeader>
+
                 <div className="flex flex-col gap-4 overflow-y-auto px-4 pb-4">
-                    <div className="">
-                        <div className="bg-muted/30">
-                            <img
-                                src={item.file_url}
-                                alt={item.alt ? item.alt : item.name}
-                                className="max-h-[60vh] w-full object-contain"
-                            />
-                        </div>
+                    <div className="bg-muted/30">
+                        <img
+                            src={item.file_url}
+                            alt={item.alt ? item.alt : item.name}
+                            className="max-h-[60vh] w-full object-contain"
+                        />
+                    </div>
+                    <div className="text-sm text-muted-foreground text-center">
+                        {item.alt ? item.alt : "null"}
                     </div>
                     <Separator />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                        <div className="space-y-1">
-                            <div className="text-muted-foreground">Tên hiển thị</div>
-                            <div className="font-medium break-all">{item.name}</div>
+                    <div className="grid grid-cols-1 gap-3 text-sm">
+                        <div className="flex gap-3 space-y-1">
+                            <div className="text-muted-foreground">File folder:</div>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button className="min-w-20 text-xs font-semibold text-muted-foreground select-none">
+                                        {selectedFolder.name}
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="flex max-h-[500px] min-w-20 flex-col overflow-y-auto" align="start">
+                                    <DropdownMenuItem onClick={() => handleSelectFolder('uploads')}>
+                                        uploads
+                                    </DropdownMenuItem>
+                                    {folders.map((folder) => (
+                                        <DropdownMenuItem
+                                            key={folder.id}
+                                            onClick={() => handleSelectFolder(folder.id)}
+                                            className="min-w-[80px]"
+                                        >
+                                            {folder.name}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
-                        <div className="space-y-1">
-                            <div className="text-muted-foreground">File name</div>
-                            <div className="break-all">{item.file_name}</div>
-                        </div>
-                        <div className="space-y-1">
-                            <div className="text-muted-foreground">MIME</div>
-                            <div>{item.mime}</div>
-                        </div>
-                        <div className="space-y-1">
-                            <div className="text-muted-foreground">Kích thước</div>
-                            <div>{toSize(item.file_size)}</div>
-                        </div>
-                        <div className="space-y-1">
-                            <div className="text-muted-foreground">Kích thước ảnh (nếu có)</div>
-                            <div>
-                                {item.width && item.height ? item.width + '×' + item.height + ' px' : '—'}
+                        <div className="space-y-1 flex gap-2">
+                            <div className="text-muted-foreground">
+                                MIME:
+                                <span className="px-2 py-1 bg-muted rounded-md">{item.mime}</span>
+                            </div>
+                            <div className="text-muted-foreground">
+                                File size:
+                                <span className="px-2 py-1 bg-muted rounded-md">{toSize(item.file_size)}</span>
                             </div>
                         </div>
-                        <div className="space-y-1 sm:col-span-2">
-                            <div className="text-muted-foreground">URL</div>
-                            <div className="truncate">{item.file_url}</div>
+                        <div className="space-y-1 gap-2">
+                            <div className="text-muted-foreground">Version: </div>
+                            <div className="flex gap-2">
+                                <div className="px-2 py-1 bg-muted text-muted-foreground rounded-md">
+                                    1280x720
+                                </div>
+                                <div className="px-2 py-1 bg-muted text-muted-foreground rounded-md">
+                                    1280x720
+                                </div>
+                                <div className="px-2 py-1 bg-muted text-muted-foreground rounded-md">
+                                    1280x720
+                                </div>
+                            </div>
                         </div>
-                        {item.caption ? (
-                            <div className="space-y-1 sm:col-span-2">
+                        {item.caption && (
+                            <div className="space-y-1">
                                 <div className="text-muted-foreground">Caption</div>
                                 <div className="break-words">{item.caption}</div>
                             </div>
-                        ) : null}
+                        )}
+                        {/* Thẻ ảnh (Tags) */}
+                        <div className="space-y-1 flex gap-2">
+                            <div className="text-muted-foreground">Thẻ: </div>
+                            <div className="flex flex-wrap gap-1">
+                                <span className="text-xs font-medium px-2 py-1 bg-muted text-muted-foreground rounded-md">
+                                    taggg
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-wrap gap-2 pt-1">
-                        <Button size="sm" onClick={handleCopy}>
-                            <IconCopy className="mr-2 h-4 w-4" />
-                            Copy URL
+                    <div className="flex gap-4 pt-1">
+                        <Button size="sm" asChild onClick={handleCopy} className="flex-1">
+                            <Link href={item.file_url} target="_blank">
+                                <SquareArrowOutUpRight className="mr-2 h-4 w-4" />
+                            </Link>
                         </Button>
-                        <Button size="sm" variant="secondary" onClick={downloadHref}>
+                        <Button size="sm" onClick={handleCopy} className="flex-1">
+                            <IconCopy className="mr-2 h-4 w-4" />
+                        </Button>
+                        <Button size="sm" onClick={downloadHref} className="flex-1">
                             <IconDownload className="mr-2 h-4 w-4" />
-                            Tải xuống
                         </Button>
                         <Button
                             size="sm"
                             variant="destructive"
                             onClick={() => onDelete(item.id)}
+                            className="flex-1"
                         >
                             <IconTrash className="mr-2 h-4 w-4" />
-                            Xoá
                         </Button>
                     </div>
                 </div>
+
                 <DrawerFooter>
                     <DrawerClose asChild>
                         <Button variant="outline">Đóng</Button>
@@ -170,6 +196,13 @@ export function MediaDetail({ item, onDelete }: Props) {
                 </DrawerFooter>
             </DrawerContent>
         </Drawer>
-
     );
+}
+
+function toSize(n?: number | null) {
+    const v = typeof n === 'number' ? n : 0;
+    if (v < 1024) return v + ' B';
+    if (v < 1024 * 1024) return (v / 1024).toFixed(1) + ' KB';
+    if (v < 1024 * 1024 * 1024) return (v / 1024 / 1024).toFixed(1) + ' MB';
+    return (v / 1024 / 1024 / 1024).toFixed(1) + ' GB';
 }

@@ -12,6 +12,7 @@ const {
   normalizePublicRelative,
 } = require("../helpers/upload");
 const { PUBLIC_DIR } = require("../helpers/paths");
+const { toNumber } = require("lodash");
 
 async function list(req, res, next) {
   try {
@@ -104,43 +105,78 @@ async function remove(req, res, next) {
 
 async function uploads(req, res, next) {
   try {
-    const files = Array.isArray(req.files)
-      ? req.files
-      : req.file
-        ? [req.file]
-        : [];
-    if (!files.length)
-      throw new BadRequestError({ message: "No file(s) uploaded" });
+    const file = req.file;
 
-    const folder_id = req.folder_id;
+    if (!file) throw new BadRequestError({ message: "No file uploaded" });
+
+    const folder_id = req.body.folder_id;
     const is_background = req.body.is_background;
 
     const rows = await saveMedia({
-      files,
+      file,
       folder_id,
       is_background,
     });
 
-    const resp = rows.map((r, i) => ({
-      id: r.id,
-      name: files[i].originalname,
-      file_name: files[i].filename,
-      file_url: r.file_url,
-      file_size: files[i].size,
-      mime: files[i].mimetype,
-      folder_id,
+    const resp = {
+      id: rows.id,
+      folder_id: rows.folder_id,
+      is_background: rows.is_background,
+      file_url: rows.file_url,
+      url: rows.file_url,
+      appUrl: `${process.env.APP_URL || ""}/media/${rows.id}`,
 
-      // ??ng b? cho mock data use-upload-file.ts
-      url: r.file_url,
-      type: files[i].mimetype,
-      size: files[i].size,
-      appUrl: `${process.env.APP_URL || ""}/media/${r.id}`,
-    }));
+      name: file.originalname,
+      file_name: file.filename,
+      file_size: file.size,
+      mime: file.mimetype,
+      type: file.mimetype,
+      size: file.size,
+    };
 
-    res.status(201).json(resp.length === 1 ? resp[0] : resp);
+    res.status(201).json(resp);
   } catch (e) {
     next(e);
   }
 }
 
-module.exports = { list, remove, uploads };
+async function update(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: "Bad id" });
+
+    // Ki?m tra xem media có t?n t?i không
+    const media = await Media.findByPk(id);
+    if (!media) return res.status(404).json({ error: "Media not found" });
+
+    // T?o object ch?a các tr??ng c?n c?p nh?t
+    const updateData = {};
+
+    // Ch? c?p nh?t các tr??ng ???c phép
+    if (req.body.name) updateData.name = req.body.name;
+    if (req.body.alt) updateData.alt = req.body.alt;
+    if (req.body.file_url) updateData.file_url = req.body.file_url;
+    if (req.body.folder_id) updateData.folder_id = req.body.folder_id;
+    if (typeof req.body.is_background !== "undefined")
+      updateData.is_background = req.body.is_background;
+    if (req.body.caption) updateData.caption = req.body.caption;
+
+    // C?p nh?t media
+    await media.update(updateData);
+
+    // Tr? v? ph?n h?i thành công
+    return res.json({
+      ok: true,
+      message: "Media updated successfully",
+      media: {
+        id: media.id,
+        ...updateData,
+      },
+    });
+  } catch (e) {
+    console.error("[media.update][catch]", e);
+    return res.status(500).json({ error: "Server error" });
+  }
+}
+
+module.exports = { list, remove, uploads, update };

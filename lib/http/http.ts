@@ -120,5 +120,5 @@ export const http = {
     post: <T>(path: string, json?: any, init?: ApiInit) => apiFetch<T>(path, { ...init, method: "POST", json }),
     put: <T>(path: string, json?: any, init?: ApiInit) => apiFetch<T>(path, { ...init, method: "PUT", json }),
     patch: <T>(path: string, json?: any, init?: ApiInit) => apiFetch<T>(path, { ...init, method: "PATCH", json }),
-    del: <T>(path: string, init?: ApiInit) => apiFetch<T>(path, { ...init, method: "DELETE" }),
+    delete: <T>(path: string, init?: ApiInit) => apiFetch<T>(path, { ...init, method: "DELETE" }),
 };

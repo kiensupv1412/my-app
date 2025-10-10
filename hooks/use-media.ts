@@ -1,7 +1,7 @@
 'use client';
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
-import { swrFetcher, apiFetch, type AppError } from '@/lib/http';
+import { swrFetcher, type AppError, http } from '@/lib/http';
 import type { PaginationMeta, MediaItem } from '@/types';
 import { k } from '@/lib/keys';
 
@@ -43,7 +43,7 @@ export function useMediaPage(
     // DELETE — API OK rồi mới update UI (không optimistic)
     async function remove(id: number | string) {
         if (!token) throw new Error('Chưa đăng nhập');
-        await apiFetch(`/media/${id}`, { method: 'DELETE', token }); // chờ server OK
+        await http.delete(`/media/${id}`, { method: 'DELETE', token }); // chờ server OK
         await mutate((cur) => {
             if (!cur) return cur;
             const next = (cur.data ?? []).filter((m) => String(m.id) !== String(id));

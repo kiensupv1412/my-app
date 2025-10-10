@@ -28,3 +28,39 @@ export function normalizeSlug(text: string) {
 export function safeStringify(value: any): string | null {
   try { return JSON.stringify(value ?? null); } catch { return null; }
 }
+
+export function createFormData(data?: Record<string, any>) {
+  const fd = new FormData();
+  if (data) appendFormData(fd, data);
+  return fd;
+}
+
+function isFileLike(v: any): v is File | Blob {
+  if (!v) return false;
+  const CFile = typeof File !== 'undefined' ? File : undefined;
+  const CBlob = typeof Blob !== 'undefined' ? Blob : undefined;
+  return (CFile && v instanceof CFile) || (CBlob && v instanceof CBlob);
+}
+
+export function appendFormData(formData: FormData, data: Record<string, any>, prefix = ''): FormData {
+  if (!data || typeof data !== 'object') return formData;
+
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined || value === null) continue;
+
+    const formKey = prefix ? `${prefix}[${key}]` : key;
+
+    if (isFileLike(value)) {
+      formData.append(formKey, value as any);
+    } else if (value instanceof Date) {
+      formData.append(formKey, value.toISOString());
+    } else if (Array.isArray(value)) {
+      value.forEach((v, i) => appendFormData(formData, { [i]: v }, formKey));
+    } else if (typeof value === 'object') {
+      appendFormData(formData, value, formKey);
+    } else {
+      formData.append(formKey, String(value));
+    }
+  }
+  return formData;
+}

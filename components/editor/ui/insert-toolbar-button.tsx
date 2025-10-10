@@ -84,11 +84,11 @@ const groups: Group[] = [
         label: 'Table',
         value: KEYS.table,
       },
-      {
-        icon: <FileCodeIcon />,
-        label: 'Code',
-        value: KEYS.codeBlock,
-      },
+      // {
+      //   icon: <FileCodeIcon />,
+      //   label: 'Code',
+      //   value: KEYS.codeBlock,
+      // },
       {
         icon: <QuoteIcon />,
         label: 'Quote',
@@ -123,11 +123,6 @@ const groups: Group[] = [
         icon: <SquareIcon />,
         label: 'To-do list',
         value: KEYS.listTodo,
-      },
-      {
-        icon: <ChevronRightIcon />,
-        label: 'Toggle list',
-        value: KEYS.toggle,
       },
     ].map((item) => ({
       ...item,

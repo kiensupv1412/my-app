@@ -100,18 +100,12 @@ export const turnIntoItems = [
     label: 'To-do list',
     value: KEYS.listTodo,
   },
-  {
-    icon: <ChevronRightIcon />,
-    keywords: ['collapsible', 'expandable'],
-    label: 'Toggle list',
-    value: KEYS.toggle,
-  },
-  {
-    icon: <FileCodeIcon />,
-    keywords: ['```'],
-    label: 'Code',
-    value: KEYS.codeBlock,
-  },
+  // {
+  //   icon: <FileCodeIcon />,
+  //   keywords: ['```'],
+  //   label: 'Code',
+  //   value: KEYS.codeBlock,
+  // },
   {
     icon: <QuoteIcon />,
     keywords: ['citation', 'blockquote', '>'],

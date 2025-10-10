@@ -120,12 +120,12 @@ const groups: Group[] = [
         label: 'Toggle',
         value: KEYS.toggle,
       },
-      {
-        icon: <Code2 />,
-        keywords: ['```'],
-        label: 'Code Block',
-        value: KEYS.codeBlock,
-      },
+      // {
+      //   icon: <Code2 />,
+      //   keywords: ['```'],
+      //   label: 'Code Block',
+      //   value: KEYS.codeBlock,
+      // },
       {
         icon: <Table />,
         label: 'Table',

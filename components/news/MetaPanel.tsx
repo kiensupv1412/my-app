@@ -196,11 +196,6 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
         }
     }
 
-    async function fetchTags(q: string) {
-        const res = await fetch(`http://localhost:4000/article/tags/search?q=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        return data ?? [];
-    }
     return (
         <div className='w-[500px]'>
             <div>
@@ -248,7 +243,7 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                         </div>
                         <div className="h-24 flex flex-col gap-3">
                             <Label htmlFor="slug">Tags</Label>
-                            <TagInput value={tags} onChange={setTags} fetchTags={fetchTags} />
+                            <TagInput value={tags} onChange={setTags} token={token} />
                         </div>
                         {/* Category + Status */}
                         <div className="flex flex-col gap-3 md:flex-row">

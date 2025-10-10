@@ -119,9 +119,7 @@ async function searchTags(req, res, next) {
 
     return res.json(rows);
   } catch (e) {
-    return res
-      .status(500)
-      .json({ success: false, message: e.message || "Search failed" });
+    next(e);
   }
 }
 

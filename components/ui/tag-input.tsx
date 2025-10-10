@@ -5,17 +5,18 @@ import { Input } from "@/components/ui/input";
 import {
     Popover,
     PopoverContent,
-    PopoverAnchor, // 👈 thêm cái này
+    PopoverAnchor,
 } from "@/components/ui/popover";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
+import { apiFetchTags } from "@/lib/api/categories.api";
 
 type Tag = { id: number; name: string; slug: string; isNew?: boolean; };
 type TagInputProps = {
     value: Tag[];
     onChange: (tags: Tag[]) => void;
-    fetchTags: (q: string) => Promise<Tag[]>;
+    token: string
 };
 
 const sanitizeName = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -24,7 +25,7 @@ const slugifyVi = (s: string) =>
         .replace(/đ/g, "d").replace(/Đ/g, "D")
         .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
-export function TagInput({ value, onChange, fetchTags }: TagInputProps) {
+export function TagInput({ value, onChange, token }: TagInputProps) {
     const [query, setQuery] = React.useState("");
     const [options, setOptions] = React.useState<Tag[]>([]);
     const [open, setOpen] = React.useState(false);
@@ -43,7 +44,7 @@ export function TagInput({ value, onChange, fetchTags }: TagInputProps) {
             }
             setLoading(true);
             try {
-                const res = await fetchTags(q);
+                const res = await apiFetchTags(q, token);
                 setOptions(res || []);
                 setOpen(focused && (res || []).length > 0); // 👈 chỉ mở khi còn focus
             } finally {
@@ -51,7 +52,7 @@ export function TagInput({ value, onChange, fetchTags }: TagInputProps) {
             }
         }, 300);
         return () => clearTimeout(t);
-    }, [query, focused, fetchTags]);
+    }, [query, focused, apiFetchTags]);
 
     const handleSelect = (tag: Tag) => {
         if (!value.some((t) => t.slug === tag.slug)) onChange([...value, tag]);
@@ -121,7 +122,7 @@ export function TagInput({ value, onChange, fetchTags }: TagInputProps) {
                                 {!loading && options.length === 0 && (
                                     <CommandItem disabled>Không có kết quả</CommandItem>
                                 )}
-                                {options.map((t) => (
+                                {options.length !== 0 && options.map((t) => (
                                     <CommandItem
                                         key={t.id}
                                         onSelect={() => handleSelect(t)}
@@ -156,6 +157,6 @@ export function TagInput({ value, onChange, fetchTags }: TagInputProps) {
                     </Badge>
                 ))}
             </div>
-        </div>
+        </div >
     );
 }

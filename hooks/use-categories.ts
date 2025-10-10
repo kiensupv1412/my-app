@@ -1,9 +1,9 @@
 import useSWR from 'swr';
 import { swrFetcher } from "@/lib/http";
-import { Categories } from "@/types";
+import { Categories, Tags } from "@/types";
 import { useSession } from "next-auth/react";
 
-/* --------------------------- CATEGORIES --------------------------- */
+/* --------------------------- CATEGORIES  TAGS--------------------------- */
 export function useCategories() {
     const { data: session } = useSession();
     const token = session?.accessToken ?? null;
@@ -16,4 +16,3 @@ export function useCategories() {
 
     return { categories: data ?? [], error, isLoading, mutate };
 }
-

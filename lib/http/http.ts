@@ -11,34 +11,6 @@ export type ApiInit = Omit<RequestInit, "body" | "method" | "headers"> & {
     timeoutMs?: number;         // abort timeout
     retry?: { attempts?: number; baseDelayMs?: number; onRetry?: (e: any, n: number) => void };
 };
-
-function mapStatusToKind(status: number) {
-    if (status === 401) return "unauthorized";
-    if (status === 403) return "forbidden";
-    if (status === 404) return "not_found";
-    if (status === 422) return "validation";
-    if (status === 429) return "rate_limit";
-    if (status >= 500) return "server";
-    return "unknown";
-}
-
-async function safeJson<T = any>(res: Response): Promise<T | undefined> {
-    const text = await res.text();
-    if (!text) return undefined as any;
-    try { return JSON.parse(text) as T; } catch { return undefined as any; }
-}
-
-function normalizeErrorMessage(payload: any, fallback: string): string {
-    if (!payload) return fallback;
-    if (typeof payload === "string") return payload;
-    if (typeof payload?.message === "string") return payload.message;
-    if (typeof payload?.error === "string") return payload.error;
-    if (payload?.errors && typeof payload.errors === "object") {
-        try { return Object.values(payload.errors).flat().join("; "); } catch { }
-    }
-    return fallback;
-}
-
 export async function apiFetch<T = any>(path: string, init: ApiInit = {}): Promise<T> {
     const {
         method = "GET",
@@ -113,6 +85,33 @@ export async function apiFetch<T = any>(path: string, init: ApiInit = {}): Promi
         }
     }
     throw lastErr;
+}
+
+function mapStatusToKind(status: number) {
+    if (status === 401) return "unauthorized";
+    if (status === 403) return "forbidden";
+    if (status === 404) return "not_found";
+    if (status === 422) return "validation";
+    if (status === 429) return "rate_limit";
+    if (status >= 500) return "server";
+    return "unknown";
+}
+
+async function safeJson<T = any>(res: Response): Promise<T | undefined> {
+    const text = await res.text();
+    if (!text) return undefined as any;
+    try { return JSON.parse(text) as T; } catch { return undefined as any; }
+}
+
+function normalizeErrorMessage(payload: any, fallback: string): string {
+    if (!payload) return fallback;
+    if (typeof payload === "string") return payload;
+    if (typeof payload?.message === "string") return payload.message;
+    if (typeof payload?.error === "string") return payload.error;
+    if (payload?.errors && typeof payload.errors === "object") {
+        try { return Object.values(payload.errors).flat().join("; "); } catch { }
+    }
+    return fallback;
 }
 
 // sugar helpers

@@ -14,7 +14,8 @@ const mediaRoutes = require("./routes/media.routes");
 const folderRoutes = require("./routes/folder.routes");
 // const gscRoutes = require('./routes/gsc.routes');
 
-const { errorHandler, multerErrorHandler } = require("./middleware/errors");
+const { multerErrorHandler } = require("./middleware/errors");
+const errorHandler = require("./middleware/error-handler");
 const { uploadDynamic } = require("./middleware/multer");
 
 dotenv.config();
@@ -81,5 +82,4 @@ app.get("/health", (req, res) => res.json({ ok: true }));
 // error handlers
 app.use(multerErrorHandler);
 app.use(errorHandler);
-
 module.exports = app;

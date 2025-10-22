@@ -3,7 +3,7 @@
 import type { Descendant, SerializeOptions } from "@/types";
 
 // Core
-import { createSerializer } from "./serializer-core";
+import { createSerializer, stripIdsFromHtml } from "./serializer-core";
 
 // Rules
 import { RuleColumn } from "./rules/rule-column";
@@ -56,7 +56,11 @@ export function serializeHtml(
         options,
     });
 
-    return serialize(packed);
+    let html = serialize(packed);
+    console.log("🚀 ~ serializeHtml ~ html:", html)
+    html = stripIdsFromHtml(html);
+
+    return html;
 }
 
 

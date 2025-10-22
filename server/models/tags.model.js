@@ -12,7 +12,6 @@ const Tag = sequelize.define(
     },
     name: { type: DataTypes.STRING(120), allowNull: false },
     slug: { type: DataTypes.STRING(160), allowNull: false, unique: true },
-    description: { type: DataTypes.TEXT, allowNull: true },
   },
   { tableName: "tags", timestamps: false }
 );

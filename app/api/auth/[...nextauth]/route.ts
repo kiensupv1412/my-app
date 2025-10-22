@@ -34,7 +34,9 @@ const auth = NextAuth({
     callbacks: {
         async jwt({ token, user }) {
             // khi đăng nhập lần đầu, copy accessToken từ user vào token
-            if (user?.accessToken) token.accessToken = user.accessToken;
+            if (user?.accessToken) {
+                token.accessToken = user.accessToken;
+            }
             return token;
         },
         async session({ session, token }) {

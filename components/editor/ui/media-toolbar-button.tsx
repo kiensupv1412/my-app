@@ -17,6 +17,7 @@ import { isUrl, KEYS } from 'platejs';
 import { useEditorRef } from 'platejs/react';
 import { toast } from 'sonner';
 import { useFilePicker } from 'use-file-picker';
+import { Editor, Element as SlateElement, Node, Range, Transforms } from "slate";
 
 import {
   AlertDialog,
@@ -99,6 +100,24 @@ export function MediaToolbarButton({
     accept: currentConfig.accept,
     multiple: true,
     onFilesSelected: async ({ plainFiles: updatedFiles }) => {
+      const files = Array.from(updatedFiles ?? []);
+      if (!files.length) return;
+
+      const sel = editor.selection;
+      if (sel && Range.isCollapsed(sel)) {
+        const paraEntry = Editor.above(editor, {
+          match: n => SlateElement.isElement(n) && (n as any).type === "p",
+          mode: "lowest",
+        });
+
+        if (paraEntry) {
+          const [paraNode, paraPath] = paraEntry as [any, any];
+          // dòng <p> rỗng nếu chuỗi text gộp lại là ""
+          if (Node.string(paraNode) === "") {
+            Transforms.removeNodes(editor, { at: paraPath });
+          }
+        }
+      }
       editor.getTransforms(PlaceholderPlugin).insert.media(updatedFiles);
     },
   });

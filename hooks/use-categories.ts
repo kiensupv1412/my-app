@@ -16,3 +16,16 @@ export function useCategories() {
 
     return { categories: data ?? [], error, isLoading, mutate };
 }
+
+export function useTags() {
+    const { data: session } = useSession();
+    const token = session?.accessToken ?? null;
+
+    const { data, error, isLoading, mutate } = useSWR<Tags>(
+        token ? ["/article/tags", token] : null,
+        ([url, t]) => swrFetcher(url, t),
+        { revalidateOnFocus: false, keepPreviousData: true }
+    );
+
+    return { tags: data ?? [], error, isLoading, mutate };
+}

@@ -98,13 +98,13 @@ function buildMediaAttrs(node: ElementAny, allowClass: boolean) {
     return attrs;
 }
 
-function openTag(tag: string, attrs: Record<string, string | undefined>): string {
+function openTag(tag: string, attrs: Record<string, string | undefined>, selfClose = false): string {
     const parts: string[] = [tag];
     for (const [k, v] of Object.entries(attrs)) {
         if (!v) continue;
         parts.push(`${k}="${v.replace(/"/g, "&quot;")}"`);
     }
-    return `<${parts.join(" ")}>`;
+    return selfClose ? `<${parts.join(" ")} />` : `<${parts.join(" ")}>`;
 }
 
 function wrapFigureIfCaption(
@@ -174,7 +174,7 @@ export const RuleMedia: SerializeRulePack = {
                 attrs.decoding = "async";
                 if ((node as any).thumbnail) attrs["data-thumbnail"] = String((node as any).thumbnail);
 
-                const img = openTag("img", attrs) + "/";
+                const img = openTag("img", attrs, true);
 
                 // caption?
                 return wrapFigureIfCaption(img, node, (node as any).caption, ctx.options.allowClassName, ctx.serializeChildren);

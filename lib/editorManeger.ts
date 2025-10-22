@@ -2,85 +2,75 @@
  * path: lib/editorManeger.ts
  */
 
-import { EditorBaseKit } from "@/components/editor/editor-base-kit";
-import { createPlateEditor, ParagraphPlugin } from "platejs/react";
-import { createSlateEditor, parseHtmlElement, serializeHtml } from "platejs";
+import { ParagraphPlugin } from "platejs/react";
 import { ParagraphElement } from "@/components/editor/ui/paragraph-node";
-import { htmlToSlate, slateToHtml } from '@slate-serializers/html';
 
-export async function handlePreview(editor: any) {
-    const html = await plateToHtml(editor)
-    const previewWindow = window.open("", "_blank");
-    if (previewWindow) {
-        previewWindow.document.write(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8" />
-          <title>Preview</title>
-          <style>
-            body { font-family: sans-serif; padding: 2rem; line-height: 1.6; }
-          </style>
-        </head>
-        <body>
-          ${html}
-        </body>
-        </html>
-      `);
-        previewWindow.document.close();
-    }
-}
-
-export async function plateToHtml(editor: any) {
-    const serializeEditor = createSlateEditor({
-        plugins: EditorBaseKit,
-        value: editor.children,
-    });
-
-    console.log("🚀 ~ plateToHtml ~ editor.children:", editor.children)
-    const html = await slateToHtml(editor.children);
-    console.log("🚀 ~ plateToHtml ~ html:", html)
-    // fix lại serializeCleanHtml xử lý thẻ figure, img  -> xây dựng bản preview
-    return serializeCleanHtml(await serializeHtml(serializeEditor));
-}
-
-type SlateNodes = any[]; // thay bằng type thực tế nếu có
-
+type SlateNodes = any[];
 type DetectResult =
     | { kind: 'nodes'; value: SlateNodes }
     | { kind: 'html'; value: string }
+    | { kind: 'text'; value: string }
     | { kind: 'empty' };
 
 function isSlateNodes(v: unknown): v is SlateNodes {
     return Array.isArray(v) && (v.length === 0 || v[0]?.children);
 }
 
+const HTML_TAG_RE = /<([A-Za-z][A-Za-z0-9-]*)(\s[^>]*)?>/;
 function detectContentType(input: unknown): DetectResult {
     if (input == null) return { kind: 'empty' };
 
     // 1) Đã là nodes
     if (isSlateNodes(input)) return { kind: 'nodes', value: input };
 
-    // 2) Là string
+    // 2) String
     if (typeof input === 'string') {
         const s = input.trim();
-        // 2a) Thử JSON → nodes
+
+        // 2a) JSON -> nodes
         try {
             const parsed = JSON.parse(s);
             if (isSlateNodes(parsed)) return { kind: 'nodes', value: parsed };
-        } catch {/* ignore */ }
+        } catch { /* ignore */ }
 
         // 2b) HTML string
-        if (s.startsWith('<')) return { kind: 'html', value: s };
+        if (HTML_TAG_RE.test(s)) return { kind: 'html', value: s };
 
-        // 2c) Rỗng/không hợp lệ
-        if (!s) return { kind: 'empty' };
+        // 2c) Text thuần (không rỗng)
+        if (s) return { kind: 'text', value: s };
+
+        // 2d) Rỗng
+        return { kind: 'empty' };
     }
 
     return { kind: 'empty' };
 }
 
-// Idempotent: chỉ setValue khi thực sự có nội dung mới
+function textToNodes(text: string): SlateNodes {
+    // Chuẩn hoá line endings
+    const norm = text.replace(/\r\n?/g, '\n');
+
+    // Tách paragraph theo 1+ dòng trống
+    const paragraphs = norm.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+
+    // Nếu không có \n\n nhưng vẫn có nội dung -> một đoạn
+    if (paragraphs.length === 0 && norm.trim()) {
+        paragraphs.push(norm.trim());
+    }
+
+    const makeChildrenFromLines = (p: string) => {
+        const lines = p.split('\n');
+        // ghép các line thành chuỗi với \n nằm trong cùng 1 text node
+        // (nếu bạn có SoftBreakPlugin, có thể map mỗi \n thành element soft-break)
+        return [{ text: lines.join('\n') }];
+    };
+
+    return paragraphs.map(p => ({
+        type: 'p',                 // hoặc type paragraph thực tế của bạn
+        children: makeChildrenFromLines(p),
+    }));
+}
+
 export function handleEditor({
     mode,
     editor,
@@ -93,7 +83,6 @@ export function handleEditor({
     if (!editor) return;
 
     const detected = detectContentType(defaultValue);
-
     let nextValue: SlateNodes = [];
 
     if (mode === 'create') {
@@ -103,178 +92,24 @@ export function handleEditor({
             nextValue = detected.value ?? [];
         } else if (detected.kind === 'html') {
             const el = document.createElement('div');
-            el.innerHTML = detected.value;
-            const element = el; // hoặc parseHtmlElement(el) nếu cần Element đã chuẩn hoá
+            let cleanedHtml = detected.value
+                .replace(/>\s+</g, '><')
+                .replace(/<\/p>\s*<br\s*\/?>\s*<p>/gi, '</p><p>')
+                .replace(/<p>\s*(?:<br\s*\/?>\s*)+<\/p>/gi, '')
+                .trim();
+            el.innerHTML = cleanedHtml;
             const nodes = editor.api.html.deserialize({
-                element,
-                collapseWhiteSpace: false,
+                element: el,
+                collapseWhiteSpace: true,
                 defaultElementPlugin: ParagraphPlugin.withComponent(ParagraphElement),
             });
             nextValue = nodes ?? [];
+        } else if (detected.kind === 'text') {
+            nextValue = textToNodes(detected.value);
         } else {
             nextValue = [];
         }
     }
+
     editor.tf.setValue(nextValue);
-}
-
-function unwrap(el: Element) {
-    const p = el.parentNode;
-    while (el.firstChild) p?.insertBefore(el.firstChild, el);
-    p?.removeChild(el);
-}
-
-export function serializeCleanHtml(html: string) {
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-
-    doc.querySelectorAll('[data-slate-spacer]').forEach(el => el.remove());
-
-
-    // 2) Xoá attr data-slate-* và data-block-id
-    doc.querySelectorAll<HTMLElement>('*').forEach((el) => {
-        [...el.attributes].forEach((a) => {
-            if (
-                a.name.startsWith('data-slate-') ||
-                a.name === 'data-block-id'
-            ) {
-                el.removeAttribute(a.name);
-            }
-        });
-    });
-
-    // Xử lý <ins> và <del>
-    // - ins: remove toàn bộ thẻ và nội dung
-    doc.querySelectorAll('ins').forEach((el) => {
-        el.remove(); // xoá cả nội dung của <ins>
-    });
-
-    // - del: bỏ thẻ, chỉ giữ plain text (không giữ thẻ con)
-    doc.querySelectorAll('del').forEach((el) => {
-        const text = doc.createTextNode(el.textContent || '');
-        el.replaceWith(text);
-    });
-
-
-    // A) Unwrap các wrapper div thuần quanh block khác (ul/ol/table/pre/figure)
-    doc.querySelectorAll('div').forEach((el) => {
-        const onlyChild = el.childElementCount === 1 ? el.firstElementChild as HTMLElement : null;
-        if (!onlyChild) return;
-        if (/^(UL|OL|TABLE|PRE|FIGURE)$/.test(onlyChild.tagName)) {
-            // bỏ lớp vỏ: <div><ul>…</ul></div> -> <ul>…</ul>
-            const parent = el.parentNode;
-            parent?.insertBefore(onlyChild, el);
-            parent?.removeChild(el);
-        }
-    });
-
-    // B) Trong blockquote, <div>… -> <p>…
-    doc.querySelectorAll('blockquote > div').forEach((el) => {
-        const p = doc.createElement('p');
-        while (el.firstChild) p.appendChild(el.firstChild);
-        el.replaceWith(p);
-    });
-
-    // C) Đổi div “đoạn văn” sang <p>
-    // - chỉ đổi nếu KHÔNG có block-level con
-    // - block-level phổ biến:
-    const BLOCK_TAGS = new Set([
-        'ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'DETAILS', 'DIALOG', 'DIV', 'DL', 'DT', 'DD',
-        'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
-        'HEADER', 'HR', 'LI', 'MAIN', 'NAV', 'OL', 'P', 'PRE', 'SECTION', 'TABLE', 'UL'
-    ]);
-
-    doc.querySelectorAll('div').forEach((el) => {
-        // bỏ qua container “đậm đặc UI” (có nhiều class util) nếu bạn muốn:
-        // if ((el.className || '').match(/\b(group|relative|overflow|rounded|px-|py-)\b/)) return;
-
-        // có bất kỳ block con nào? => không đổi
-        const hasBlockChild = Array.from(el.children).some((c) => BLOCK_TAGS.has(c.tagName));
-        if (hasBlockChild) return;
-
-        // nếu chủ yếu là text/inline => đổi sang <p>
-        const p = doc.createElement('p');
-        // giữ lại inline class "an toàn" nếu bạn cần (hoặc bỏ hết class):
-        if (el.getAttribute('class')) el.removeAttribute('class');
-
-        while (el.firstChild) p.appendChild(el.firstChild);
-        el.replaceWith(p);
-    });
-
-    // 3) Bỏ class bắt đầu bằng slate-
-    doc.querySelectorAll<HTMLElement>('[class]').forEach((el) => {
-        const kept = (el.getAttribute('class') || '')
-            .split(/\s+/)
-            .filter((c) => c && !/^slate-/.test(c));
-        if (kept.length) el.setAttribute('class', kept.join(' '));
-        else el.removeAttribute('class');
-    });
-
-    // 4) Fix code block: gộp text lại
-    doc.querySelectorAll('pre > code').forEach((code) => {
-        const hasElementChild = [...code.childNodes].some((n) => n.nodeType === 1);
-        if (!hasElementChild) return;
-        const lines: string[] = [];
-        [...code.childNodes].forEach((n) => lines.push((n.textContent || '').replace(/\r/g, '')));
-        code.textContent = lines.join('\n');
-    });
-
-    // 5) Unwrap span rỗng (giữ lại a/strong/em/u/s/code/kbd)
-    const KEEP = new Set(['A', 'STRONG', 'EM', 'U', 'S', 'CODE', 'KBD']);
-    for (let pass = 0; pass < 3; pass++) {
-        doc.querySelectorAll('span').forEach((sp) => {
-            if (KEEP.has(sp.tagName)) return;
-            if (sp.attributes.length === 0) unwrap(sp);
-        });
-    }
-
-    // 6) Link target=_blank thêm rel
-    doc.querySelectorAll('a[target="_blank"]').forEach((a) => {
-        const rel = (a.getAttribute('rel') || '').split(/\s+/).filter(Boolean);
-        if (!rel.includes('noopener')) rel.push('noopener');
-        if (!rel.includes('noreferrer')) rel.push('noreferrer');
-        a.setAttribute('rel', rel.join(' '));
-    });
-
-
-    doc.querySelectorAll('p').forEach(p => {
-        if (p.textContent.trim() === '' || p.textContent === '\uFEFF') {
-            const br = doc.createElement('br');
-            p.replaceWith(br);
-        }
-    });
-
-    // 7) Xoá style inline (tuỳ chọn)
-    //   doc.querySelectorAll<HTMLElement>('[style]').forEach((el) => el.removeAttribute('style'));
-
-    // 8) Unwrap wrapper .slate-editor
-    doc.querySelectorAll('.slate-editor').forEach((el) => unwrap(el));
-
-    (() => {
-        // duyệt tất cả <ul> (theo thứ tự tài liệu)
-        const uls = Array.from(doc.querySelectorAll('ul'));
-
-        for (let i = 0; i < uls.length; i++) {
-            const base = uls[i];
-            // tiếp tục gộp khi thẻ kế tiếp vẫn là <ul>
-            let next = base.nextElementSibling;
-
-            while (next && next.tagName === 'UL') {
-                const nextUl = next as HTMLUListElement;
-
-                // Chuyển từng <li> của nextUl sang base (đúng thứ tự)
-                Array.from(nextUl.children).forEach((child) => {
-                    if (child.tagName === 'LI') base.appendChild(child);
-                });
-
-                // Xóa <ul> thừa
-                const toRemove = nextUl;
-                next = nextUl.nextElementSibling;
-                toRemove.remove();
-            }
-        }
-    })();
-
-    return doc.body.innerHTML;
 }

@@ -32,13 +32,13 @@ function EditPageInner() {
     const { article } = useArticleEdit(id)
     const { categories } = useCategories()
 
-    const descEditor = usePlateEditor({
+    const description_Editor = usePlateEditor({
         id: 'description',
         plugins: EditorDescKit,
-        value: [{ type: 'p', children: [{ text: '' }] }],
+        value: [],
     });
 
-    const contentEditor = usePlateEditor({
+    const content_Editor = usePlateEditor({
         id: 'content',
         plugins: EditorKit,
         value: [],
@@ -46,28 +46,28 @@ function EditPageInner() {
 
     const mode: Mode = article ? "edit" : "create";
 
-    const initialContent = article?.content ?? article?.content_html ?? null
+    const initialContent = article?.content || article?.content_html || null
     useEffect(() => {
-        if (!contentEditor || initialContent == null) return;
-        handleEditor({ mode, editor: contentEditor, defaultValue: initialContent });
+        if (!content_Editor || initialContent == null) return;
+        handleEditor({ mode, editor: content_Editor, defaultValue: initialContent });
     }, [initialContent]);
 
-    const initialDescription = article?.description ?? article?.description_html ?? null
+    const initialDescription = article?.description || article?.description_html || null
     useEffect(() => {
-        if (!descEditor || initialDescription == null) return;
-        handleEditor({ mode, editor: descEditor, defaultValue: initialDescription });
+        if (!description_Editor || initialDescription == null) return;
+        handleEditor({ mode, editor: description_Editor, defaultValue: initialDescription });
     }, [initialDescription]);
 
     return (
         <div className="flex flex-1 min-h-0">
             <div className="w-full flex flex-col gap-4 border-r min-h-0 grow overflow-y-auto">
-                <Plate editor={descEditor}>
+                <Plate editor={description_Editor}>
                     <EditorContainer className="h-auto">
                         <PlateEditor id={"description"} />
                     </EditorContainer>
                 </Plate>
                 <div className="flex flex-col flex-1 relative">
-                    <Plate editor={contentEditor}>
+                    <Plate editor={content_Editor}>
                         <EditorContainer className="flex flex-col flex-1">
                             <Editor id={"content"} />
                         </EditorContainer>
@@ -78,8 +78,8 @@ function EditPageInner() {
                 mode={mode}
                 article={article}
                 categories={categories}
-                descEditor={descEditor}
-                contentEditor={contentEditor}
+                description_Editor={description_Editor}
+                content_Editor={content_Editor}
             />
         </div>
     );

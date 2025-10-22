@@ -6,16 +6,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Button } from "../ui/button";
 import { Article, ArticleUpdatePayload, Categories, MediaItem, Mode, STATUS } from "@/types";
 import { useEffect, useMemo, useState } from "react";
-import { handlePreview, plateToHtml } from "@/lib/editorManeger";
 import { useRouter } from 'next/navigation'
 import PickThumb from "./PickThumb";
 import { normalizeSlug, safeStringify } from "@/lib/utils";
 import { z } from 'zod';
 import { toast } from "sonner";
 import { TagInput } from "../ui/tag-input";
-import { checkSlugExists, createArticle, updateArticle } from "@/lib/api";
+import { createArticle, updateArticle } from "@/lib/api";
 import { apiUploadMedia } from "@/lib/api";
 import { useSession } from "next-auth/react";
+import DOMPurify from 'isomorphic-dompurify';
+import { serializeHtml } from "@/lib/serializeHtml";
+import { toNumber } from "lodash";
+import { AsyncButton } from "../ui/async-button";
 
 const FormSchema = z.object({
     title: z.string().trim().min(1, 'Tiêu đề bắt buộc').max(160),
@@ -24,9 +27,8 @@ const FormSchema = z.object({
     status: z.enum(STATUS, { errorMap: () => ({ message: 'Trạng thái không hợp lệ' }) }),
 });
 
-
-export function MetaPanel({ mode, article, categories, descEditor, contentEditor }:
-    { mode: Mode, article: Article | null, categories: Categories, descEditor: any, contentEditor: any }) {
+export function MetaPanel({ mode, article, categories, description_Editor, content_Editor }:
+    { mode: Mode, article: Article | null, categories: Categories, description_Editor: any, content_Editor: any }) {
 
     const DEFAULT_THUMB_URL = '/thumb-1920x1080.png';
 
@@ -57,6 +59,15 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
         setThumb(article?.thumb ?? undefined);
         setErrors({});
     }, [initialForm, article]);
+
+    useEffect(() => {
+        if (article?.tags?.length) {
+            setTags(article.tags.map(({ id, name, slug }) => ({ id, name, slug })));
+        } else {
+            setTags([]); // fallback khi không có tag
+        }
+    }, [article?.id]);
+
     const handleChange = (k: keyof typeof form, v: string) => {
         setForm((prev) => ({ ...prev, [k]: v }));
         setErrors((prev) => ({ ...prev, [k]: undefined }));
@@ -72,7 +83,7 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
 
         try {
             const file = new File([thumb?.file_url], `og-${Date.now()}.png`, { type: 'image/png' });
-            const uploaded = await apiUploadMedia([file], { folder_id: null });
+            const uploaded = await apiUploadMedia(file);
             const item = uploaded?.[0];
             if (item && Number.isFinite(item.id)) {
                 setThumb((t) => ({ ...t, id: item.id, file_url: item.file_url, blob: null } as MediaItem));
@@ -84,34 +95,30 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
             return undefined;
         }
     };
+
     async function buildPayload(): Promise<ArticleUpdatePayload> {
-        const descJson = safeStringify(descEditor?.children ?? []);
-        const contentJson = safeStringify(contentEditor?.children ?? []);
-
-        // render HTML song song, không vỡ nếu 1 cái fail
-        const [descRes, contentRes] = await Promise.allSettled([
-            plateToHtml(descEditor),
-            plateToHtml(contentEditor),
-        ]);
-        const descHtml = descRes.status === 'fulfilled' ? descRes.value : null;
-        const contentHtml = contentRes.status === 'fulfilled' ? contentRes.value : null;
-
         const finalThumbId = await ensureThumbId();
 
-        const availableSlug = await checkSlugExists(form.slug, article?.id, token);
-        if (!availableSlug.available)
-            return Promise.reject(new Error('Lỗi kiểm tra slug tồn tại'));
+        const description_json = safeStringify(description_Editor?.children ?? []);
+        const content_Json = safeStringify(content_Editor?.children ?? []);
+
+        const description_html = serializeHtml(description_Editor?.children);
+        const content_Html = serializeHtml(content_Editor?.children);
 
         return {
-            title: form.title.trim(),
-            slug: availableSlug.slug,
-            status: form.status,
-            category_id: Number(form.category_id),
             thumb_id: finalThumbId,
-            content: contentJson,
-            description: descJson,
-            content_html: contentHtml,
-            description_html: descHtml,
+
+            title: form.title.trim(),
+            slug: form.slug.trim(),
+            status: form.status,
+            category_id: toNumber(form.category_id),
+            tags: tags,
+
+            content: content_Json,
+            description: description_json,
+
+            content_html: content_Html,
+            description_html: description_html,
         };
     }
 
@@ -196,6 +203,38 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
         }
     }
 
+    function makePreviewKey() {
+        return 'pv_' + (globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36));
+    }
+    async function buildPreviewPayload() {
+        const payload = await buildPayload();
+        return {
+            key: makePreviewKey(),
+            data: {
+                title: payload.title,
+                slug: payload.slug,
+                html: DOMPurify.sanitize(payload.content_html ?? ''),
+                descHtml: payload.description_html ? DOMPurify.sanitize(payload.description_html) : null,
+                thumbUrl: thumb?.file_url ?? DEFAULT_THUMB_URL,
+                meta: {
+                    category_id: payload.category_id,
+                    status: payload.status,
+                    tags,
+                    at: Date.now(),
+                },
+            },
+        };
+    }
+    async function handleQuickPreview() {
+        try {
+            const { key, data } = await buildPreviewPayload();
+            localStorage.setItem(key, JSON.stringify(data));
+            window.open(`/preview?k=${encodeURIComponent(key)}`, '_blank', 'noopener');
+            toast.success('Đã mở xem trước');
+        } catch (e: any) {
+            toast.error(e?.message ?? 'Không tạo được preview');
+        }
+    }
     return (
         <div className='w-[500px]'>
             <div>
@@ -292,7 +331,7 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                                 type="button"
                                 variant="outline"
                                 className="min-w-[9ch] whitespace-nowrap h-9 inline-flex items-center justify-center"
-                                onClick={() => handlePreview(contentEditor)}
+                                onClick={handleQuickPreview}
                             >
                                 Xem Trước
                             </Button>
@@ -308,14 +347,24 @@ export function MetaPanel({ mode, article, categories, descEditor, contentEditor
                             >
                                 Lưu nháp
                             </Button>
-
+                            {/* 
                             <Button
                                 type="submit"
                                 disabled={!form.title || !form.category_id || isSubmitting}
                                 className="min-w-[120px] whitespace-nowrap h-9 inline-flex items-center justify-center"
                             >
                                 {isSubmitting ? 'Đang lưu…' : mode === 'create' ? 'Tạo bài' : 'Cập nhật'}
-                            </Button>
+                            </Button> */}
+                            <AsyncButton
+                                type="button"
+                                variant="default"
+                                disabled={!form.title || !form.category_id || isSubmitting}
+                                onClickAsync={async () => {
+                                    await handleSubmit();
+                                }}
+                            >
+                                {mode === 'create' ? 'Tạo bài' : 'Cập nhật'}
+                            </AsyncButton>
                         </div>
 
                     </form>

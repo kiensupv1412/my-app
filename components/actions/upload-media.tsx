@@ -22,6 +22,7 @@ import { MediaItem } from '@/types';
 import { toast } from 'sonner';
 import { apiUploadMedia } from '@/lib/api/media.api';
 import { useSession } from 'next-auth/react';
+import { AsyncButton } from '../ui/async-button';
 
 type PickedFile = {
     file: File;
@@ -330,9 +331,16 @@ export function UploadMedia({
                         <span className="text-sm">is_background</span>
                         <Checkbox checked={isBackground} onCheckedChange={(val) => setIsBackground(!!val)} disabled={uploading} />
                         <Button variant="outline" onClick={() => setOpen(false)} disabled={uploading}>Cancel</Button>
-                        <Button onClick={onUpload} disabled={uploading || files.length === 0}>
-                            {uploading ? 'Uploading…' : 'Upload'}
-                        </Button>
+                        <AsyncButton
+                            type='button'
+                            variant="default"
+                            disabled={uploading || files.length === 0}
+                            onClickAsync={
+                                async () => await onUpload()
+                            }
+                        >
+                            Upload
+                        </AsyncButton>
                     </div>
                 </div>
             </DialogContent>

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useArticlesPage } from '@/hooks/use-articles';
-import { useCategories } from '@/hooks/use-categories';
+import { useCategories, useTags } from '@/hooks/use-categories';
 import { usePageLimit, usePagination } from '@/hooks/usePagination';
 import {
   IconChevronDown,
@@ -40,10 +40,17 @@ import { toast } from 'sonner';
  */
 export default function Page() {
   const { categories } = useCategories();
+  const { tags } = useTags();
 
-  const [filters, setFilters] = React.useState<{ category_id?: number; title?: string }>({});
+  const [filters, setFilters] = React.useState<{
+    category_id?: number;
+    title?: string;
+    tag_id?: number[];
+  }>({});
   const { page, setPage, limit, setLimit } = usePageLimit(1, 10);
+
   const { data: items = [], meta, isLoading, remove } = useArticlesPage(page, limit, filters);
+
   const pagination = usePagination({ meta, limit, setLimit, page, setPage });
 
   const table = useReactTable({
@@ -75,7 +82,7 @@ export default function Page() {
                   setFilters((f) => ({ ...f, title: e.target.value }));
                   setPage(1);
                 }}
-                className="h-8 w-[200px] lg:w-[250px]"
+                className="h-8 w-[200px] lg:w-[300px]"
               />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -88,7 +95,6 @@ export default function Page() {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem
                     onSelect={(e) => {
-                      e.preventDefault();
                       setFilters(f => ({ ...f, category_id: undefined }));
                       setPage(1);
                     }}
@@ -110,6 +116,43 @@ export default function Page() {
                         className="capitalize"
                       >
                         {cat.name}
+                      </DropdownMenuCheckboxItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <IconLayoutColumns />
+                    <span className="hidden lg:inline">Tags</span>
+                    <IconChevronDown />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      setFilters(f => ({ ...f, tag_id: undefined }));
+                      setPage(1);
+                    }}
+                    className="font-medium"
+                  >
+                    Tất cả
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {tags.map((tag) => {
+                    const isActive = filters.tag_id === tag.id;
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={tag.id}
+                        checked={!!isActive}
+                        onCheckedChange={(checked) => {
+                          setFilters((f) => ({ ...f, tag_id: checked ? tag.id : undefined }));
+                          setPage(1);
+                        }}
+                        className="capitalize"
+                      >
+                        {tag.name}
                       </DropdownMenuCheckboxItem>
                     );
                   })}

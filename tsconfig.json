@@ -38,7 +38,10 @@
     "components/editor/editor-kit.tsx",
     "components/editor/plate-editor.tsx",
     ".vscode/page.tsx",
-    "server/models/tags.model.js"
+    "server/models/tags.model.js",
+    "server/middleware/auth.get.js",
+    "server/routes/auth/google-indexing.get.js",
+    "server/routes/auth/google.get.js"
   ],
   "exclude": ["server", "server/**", "node_modules"]
 }

@@ -60,17 +60,15 @@ export function useArticlesPage(page = 1, limit = 10, filters: Record<string, an
     return { data: items, meta, error, isLoading, mutate, remove };
 }
 
-/* ---------- (B) DETAIL + CREATE/UPDATE ---------- */
+/* ---------- (B) DETAIL  ---------- */
 export function useArticleEdit(id?: string | number) {
     const { data: session } = useSession();
     const token = session?.accessToken ?? null;
 
-    const key = id && token ? [`/article/${id}`, token] : null;
-
     const { data, error, isLoading, mutate } = useSWR<Article, AppError>(
-        key,
-        (key, ctx) => swrFetcher(key, token, ctx),
-        { revalidateOnFocus: false }
+        token ? [`/article/${id}`, token] : null,
+        ([url, t]) => swrFetcher(url, t),
+        { revalidateOnFocus: false, keepPreviousData: true }
     );
 
     return { article: data ?? null, error, isLoading, mutate };

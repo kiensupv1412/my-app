@@ -1,6 +1,8 @@
 const crypto = require("crypto");
-
-class GhostError extends Error {
+/*
+ * path: server/error.js
+ */
+class AppError extends Error {
   /**
    * @param {Object} options
    * @param {number} [options.statusCode=500]
@@ -58,7 +60,7 @@ const mergeOptions = (options, defaults) => {
 };
 
 /** ---------- Typed error classes (subset, dễ mở rộng) ---------- */
-class InternalServerError extends GhostError {
+class InternalServerError extends AppError {
   constructor(options = {}) {
     super(
       mergeOptions(options, {
@@ -70,7 +72,7 @@ class InternalServerError extends GhostError {
     );
   }
 }
-class BadRequestError extends GhostError {
+class BadRequestError extends AppError {
   constructor(options = {}) {
     super(
       mergeOptions(options, {
@@ -81,7 +83,7 @@ class BadRequestError extends GhostError {
     );
   }
 }
-class ValidationError extends GhostError {
+class ValidationError extends AppError {
   constructor(options = {}) {
     super(
       mergeOptions(options, {
@@ -92,7 +94,7 @@ class ValidationError extends GhostError {
     );
   }
 }
-class UnauthorizedError extends GhostError {
+class UnauthorizedError extends AppError {
   constructor(options = {}) {
     super(
       mergeOptions(options, {
@@ -103,7 +105,7 @@ class UnauthorizedError extends GhostError {
     );
   }
 }
-class NoPermissionError extends GhostError {
+class NoPermissionError extends AppError {
   constructor(options = {}) {
     super(
       mergeOptions(options, {
@@ -114,7 +116,7 @@ class NoPermissionError extends GhostError {
     );
   }
 }
-class NotFoundError extends GhostError {
+class NotFoundError extends AppError {
   constructor(options = {}) {
     super(
       mergeOptions(options, {
@@ -126,7 +128,7 @@ class NotFoundError extends GhostError {
     );
   }
 }
-class TooManyRequestsError extends GhostError {
+class TooManyRequestsError extends AppError {
   constructor(options = {}) {
     super(
       mergeOptions(options, {
@@ -138,7 +140,7 @@ class TooManyRequestsError extends GhostError {
     );
   }
 }
-class ConflictError extends GhostError {
+class ConflictError extends AppError {
   constructor(options = {}) {
     super(
       mergeOptions(options, {
@@ -151,7 +153,7 @@ class ConflictError extends GhostError {
 }
 
 module.exports = {
-  GhostError,
+  AppError,
   InternalServerError,
   BadRequestError,
   ValidationError,

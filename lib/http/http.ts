@@ -1,5 +1,6 @@
 import { AppError } from "./errors";
 import { joinBase } from "./constants";
+import { signIn } from 'next-auth/react';
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -11,6 +12,10 @@ export type ApiInit = Omit<RequestInit, "body" | "method" | "headers"> & {
     timeoutMs?: number;         // abort timeout
     retry?: { attempts?: number; baseDelayMs?: number; onRetry?: (e: any, n: number) => void };
 };
+
+// tránh gọi signIn liên tục nếu nhiều request cùng 401
+let __lastAuthBounceAt = 0;
+
 export async function apiFetch<T = any>(path: string, init: ApiInit = {}): Promise<T> {
     const {
         method = "GET",
@@ -56,6 +61,21 @@ export async function apiFetch<T = any>(path: string, init: ApiInit = {}): Promi
             throw new AppError("Network error", "network", { retryable: true, details: e });
         } finally {
             if (timeout) clearTimeout(timeout);
+        }
+
+        // --- AUTH: nếu hết hạn token khi đang đứng tại trang → gọi signIn để đẩy ra login
+        if (res.status === 401 || res.status === 419 || res.status === 440) {
+            if (typeof window !== "undefined") {
+                const now = Date.now();
+                if (now - __lastAuthBounceAt > 2000) { // debounce 2s
+                    __lastAuthBounceAt = now;
+                    const cb = window.location.pathname + window.location.search;
+                    // provider = undefined → NextAuth tự chọn trang /login của bạn
+                    void signIn(undefined, { callbackUrl: cb });
+                }
+            }
+            // ném lỗi chuẩn hóa để SWR/logic phía trên có thể handle
+            throw new AppError("Unauthorized", "auth", { status: res.status, retryable: false });
         }
 
         const payload = await safeJson<any>(res);

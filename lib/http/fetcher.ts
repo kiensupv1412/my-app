@@ -1,7 +1,7 @@
 // lib/http/fetcher.ts
 import type { Key as SWRKey } from 'swr';
 import { keyToUrl } from './url';
-import { apiFetch, http } from './http';
+import { http } from './http';
 
 type SwrContext = { signal?: AbortSignal };
 

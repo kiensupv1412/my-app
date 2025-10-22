@@ -44,15 +44,17 @@ Article.belongsTo(Category, { foreignKey: "category_id", as: "category" });
 Category.hasMany(Article, { foreignKey: "category_id" });
 
 Article.belongsToMany(Tag, {
+  as: "tags",
   through: "article_tags",
   foreignKey: "article_id",
   otherKey: "tag_id",
 });
-Tag.belongsToMany(Article, {
-  through: "article_tags",
-  foreignKey: "tag_id",
-  otherKey: "article_id",
-});
+// Article.belongsToMany(Tag, {
+//   as: "filterTags",
+//   through: "article_tags",
+//   foreignKey: "article_id",
+//   otherKey: "tag_id",
+// });
 
 Article.belongsTo(Media, { foreignKey: "thumb_id", as: "thumb" });
 Media.hasMany(Article, { foreignKey: "thumb_id" });

@@ -12,13 +12,3 @@ export async function updateArticle(id: string | number, patch: any, token: stri
     const serverData = await http.put<any>(`/article/update/${id}`, patch, { token });
     return serverData;
 }
-
-export async function checkSlugExists(slug: string, excludeId: number | undefined, token: string | null) {
-    const data = await http.post<{
-        available: boolean;
-        slug: string;
-        conflict_id: number | null;
-    }>(`/article/slug/${encodeURIComponent(slug)}`, { slug, exclude_id: excludeId ?? null }, { token });
-
-    return data;
-}

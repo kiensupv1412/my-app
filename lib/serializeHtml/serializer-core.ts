@@ -1,4 +1,4 @@
-// core/serializer-core.ts — core serializer engine + utilities
+// core/serializer-core.ts — engine serialize cốt lõi + tiện ích
 import type {
     Descendant,
     SlateNode,
@@ -10,9 +10,9 @@ import type {
     SerializeRulePack,
 } from "@/types";
 
-// =================== Defaults & Contracts ===================
+// =================== Mặc định & Hợp đồng ===================
 export type CreateSerializerArgs = {
-    plugins?: SerializeRulePack[]; // gọi là "plugins" nhưng là pack rule logic (không dùng plugin/kit trong tên file)
+    plugins?: SerializeRulePack[]; // "plugins" thực chất là pack rule (không dùng plugin/kit trong tên file)
     options?: SerializeOptions;
 };
 
@@ -32,16 +32,25 @@ const htmlEscapeMap: Record<string, string> = {
     "'": "&#39;",
 };
 
+/** escapeHtml
+ * Thoát ký tự đặc biệt để an toàn khi đưa text vào HTML (&, <, >, ", ').
+ */
 export function escapeHtml(text: string): string {
     if (!/[&<>"']/.test(text)) return text;
     return text.replace(/[&<>"']/g, (m) => htmlEscapeMap[m]);
 }
 
+/** toKebab
+ * Chuyển camelCase → kebab-case cho tên thuộc tính CSS inline.
+ */
 function toKebab(k: string): string {
     return k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
 }
 
-// reject suspicious CSS values
+/** safeCssValue
+ * Loại bỏ giá trị CSS nguy hiểm (expression(), javascript:, url()).
+ * Trả null nếu không an toàn, ngược lại trả chuỗi đã trim.
+ */
 function safeCssValue(v: unknown): string | null {
     if (v == null) return null;
     const s = String(v).trim();
@@ -51,7 +60,10 @@ function safeCssValue(v: unknown): string | null {
     return s;
 }
 
-/** Convert a record of camelCase style to inline CSS string; reject dangerous values. */
+/** styleString
+ * Nhận object style camelCase và trả về chuỗi CSS inline; loại bỏ giá trị nguy hiểm.
+ * Trả undefined nếu không có thuộc tính hợp lệ.
+ */
 export function styleString(style?: Record<string, unknown>): string | undefined {
     if (!style) return undefined;
     const parts: string[] = [];
@@ -62,12 +74,16 @@ export function styleString(style?: Record<string, unknown>): string | undefined
     return parts.length ? parts.join(";") : undefined;
 }
 
-/** Sanitize URL by scheme; allow relative; allow data:image/* if requested. */
+/** sanitizeUrl
+ * Làm sạch URL theo scheme cho phép (http, https, mailto, tel).
+ * Cho phép URL tương đối; có thể bật data:image/* qua allowDataImage.
+ * Trả null nếu URL không hợp lệ/không an toàn.
+ */
 const DEFAULT_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
 export function sanitizeUrl(href: string, allowDataImage = false): string | null {
     try {
         if (allowDataImage && href.startsWith("data:image/")) return href;
-        // relative URL → allow
+        // URL tương đối → cho phép
         if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(href)) return href;
         const u = new URL(href);
         if (DEFAULT_SCHEMES.has(u.protocol)) return href;
@@ -77,7 +93,10 @@ export function sanitizeUrl(href: string, allowDataImage = false): string | null
     }
 }
 
-/** Clean className to alphanum/-/_/space only. */
+/** safeClassName
+ * Làm sạch className: chỉ giữ a-zA-Z0-9, -, _, khoảng trắng; gom nhiều space thành 1.
+ * Trả null nếu rỗng sau khi làm sạch.
+ */
 export function safeClassName(className?: string | null): string | null {
     if (!className) return null;
     const cleaned = className.replace(/[^a-zA-Z0-9\-_ ]+/g, " ").trim().replace(/\s+/g, " ");
@@ -85,16 +104,26 @@ export function safeClassName(className?: string | null): string | null {
 }
 
 // =================== Type guards ===================
+/** isTextLeaf
+ * Kiểm tra node là TextLeaf (không có type, có thuộc tính text là string).
+ */
 export function isTextLeaf(n: SlateNode): n is TextLeaf {
     return (n as any).type === undefined && typeof (n as any).text === "string";
 }
+
+/** isElement
+ * Kiểm tra node là Element (có thuộc tính type).
+ */
 export function isElement(n: SlateNode): n is ElementAny {
     return (n as any).type !== undefined;
 }
 
-// =================== Registry Resolve ===================
+// =================== Registry & Resolve rule ===================
 type ResolvedRule = SerializeRule & { __prio: number; __pack?: string };
 
+/** buildRegistry
+ * Gộp các pack rule thành danh sách rule đã gán độ ưu tiên; sort ưu tiên cao trước.
+ */
 function buildRegistry(packs: SerializeRulePack[] = []): ResolvedRule[] {
     const out: ResolvedRule[] = [];
     for (const p of packs) {
@@ -103,23 +132,26 @@ function buildRegistry(packs: SerializeRulePack[] = []): ResolvedRule[] {
             out.push(Object.assign({ __prio: prio, __pack: p.name }, r));
         }
     }
-    // higher priority first; stable sort respected in modern engines
+    // ưu tiên cao đứng trước; sort ổn định trong runtime hiện đại
     out.sort((a, b) => (b.__prio - a.__prio));
     return out;
 }
 
+/** resolveRule
+ * Duyệt registry và chọn rule đầu tiên match với node (bắt lỗi match để tiếp tục).
+ */
 function resolveRule(node: SlateNode, registry: ResolvedRule[]): ResolvedRule | undefined {
     for (const r of registry) {
         try {
             if (r.match(node)) return r;
         } catch {
-            // ignore match error, continue
+            // bỏ qua lỗi trong match và tiếp tục
         }
     }
     return undefined;
 }
 
-// =================== Text Leaf Serializer ===================
+// =================== Serializer cho TextLeaf ===================
 const INLINE_STYLE_KEYS = new Set([
     "color",
     "backgroundColor",
@@ -134,16 +166,26 @@ const INLINE_STYLE_KEYS = new Set([
     "textAlign"
 ]);
 
+/** serializeTextLeaf
+ * Render 1 TextLeaf:
+ *  - escape text
+ *  - chuyển xuống dòng mềm thành <br/>
+ *  - bọc các mark ngữ nghĩa (strong, em, u, s, code, mark, kbd, sub/sup)
+ *  - áp style inline và className (nếu cho phép)
+ */
 function serializeTextLeaf(leaf: TextLeaf, opts: Required<SerializeOptions>): string {
     // 1) escape text
     let text = escapeHtml(leaf.text ?? "");
 
-    // 2) soft-break
+    // 2) xuống dòng mềm
     if (opts.softBreakAsBr && text.includes("\n")) {
-        text = text.split("\n").map((t) => (t === "" ? "<br/>" : t)).join("\n");
+        text = text
+            .split("\n")
+            .map((t) => (t === "" ? "<br/>" : t))
+            .join("<br/>");
     }
 
-    // 3) semantic marks (deterministic order)
+    // 3) các mark ngữ nghĩa (thứ tự xác định)
     const wrappers: ((s: string) => string)[] = [];
     if (leaf.bold) wrappers.push((s) => `<strong>${s}</strong>`);
     if (leaf.italic) wrappers.push((s) => `<em>${s}</em>`);
@@ -158,7 +200,7 @@ function serializeTextLeaf(leaf: TextLeaf, opts: Required<SerializeOptions>): st
     if (sub) wrappers.push((s) => `<sub>${s}</sub>`);
     if (sup) wrappers.push((s) => `<sup>${s}</sup>`);
 
-    // 4) inline styles to <span style="">
+    // 4) style inline đưa vào <span style="">
     const styleObj: Record<string, unknown> = {};
     for (const k of INLINE_STYLE_KEYS) {
         const val = (leaf as any)[k];
@@ -166,7 +208,7 @@ function serializeTextLeaf(leaf: TextLeaf, opts: Required<SerializeOptions>): st
     }
     const style = styleString(styleObj);
 
-    // 5) className (optional, sanitized)
+    // 5) className (tùy chọn, đã làm sạch)
     let classAttr = "";
     if (opts.allowClassName && leaf.className) {
         const safe = safeClassName(leaf.className);
@@ -182,7 +224,10 @@ function serializeTextLeaf(leaf: TextLeaf, opts: Required<SerializeOptions>): st
     return out;
 }
 
-// =================== Safe rule call ===================
+// =================== Gọi rule an toàn ===================
+/** safeCallSerialize
+ * Gọi rule.serialize; nếu lỗi thì “unwrap” children để không làm vỡ toàn bộ output.
+ */
 function safeCallSerialize(rule: ResolvedRule, node: ElementAny, ctx: SerializerCtx): string {
     try {
         return rule.serialize(node as any, ctx);
@@ -193,12 +238,25 @@ function safeCallSerialize(rule: ResolvedRule, node: ElementAny, ctx: Serializer
 }
 
 // =================== Public API ===================
+/** createSerializer
+ * Tạo engine serialize:
+ *  - build registry từ các pack rule
+ *  - cung cấp ctx.serializeChildren để duyệt cây Slate
+ *  - trả serialize(nodes) xuất HTML + utils cho rule dùng chung
+ */
 export function createSerializer({ plugins = [], options }: CreateSerializerArgs) {
     const opts: Required<SerializeOptions> = { ...defaultOptions, ...(options ?? {}) };
     const registry = buildRegistry(plugins);
 
     const ctx: SerializerCtx = {
         options: opts,
+
+        /** serializeChildren
+         * Duyệt mảng node con:
+         *  - TextLeaf → render qua serializeTextLeaf
+         *  - Element → tìm rule; không có rule thì áp policy onUnknown (drop/unwrap)
+         *  - Kết quả nối chuỗi HTML
+         */
         serializeChildren(nodes?: Descendant[]) {
             if (!nodes || nodes.length === 0) return "";
             const out: string[] = [];
@@ -218,13 +276,17 @@ export function createSerializer({ plugins = [], options }: CreateSerializerArgs
                     }
                     continue;
                 }
-                // unreachable fallback
+                // nhánh không xảy ra: fallback rỗng
                 out.push("");
             }
             return out.join("");
         },
     };
 
+    /** serialize
+     * Render toàn bộ cây Slate sang HTML bằng ctx.serializeChildren.
+     * (Hậu xử lý như stripIdsFromHtml nên thực hiện bên ngoài nếu cần.)
+     */
     function serialize(nodes: Descendant[] = []): string {
         return ctx.serializeChildren(nodes);
     }
@@ -233,7 +295,7 @@ export function createSerializer({ plugins = [], options }: CreateSerializerArgs
         serialize,
         ctx,
         options: opts,
-        // expose utils for rule files
+        // xuất kèm tiện ích cho file rule sử dụng
         utils: {
             escapeHtml,
             styleString,
@@ -243,4 +305,12 @@ export function createSerializer({ plugins = [], options }: CreateSerializerArgs
             isElement,
         },
     };
+}
+
+// =================== Hậu xử lý HTML ===================
+// Xoá mọi thuộc tính id="..." / id='...' / id=trần trong các thẻ HTML
+export function stripIdsFromHtml(html: string): string {
+    // chỉ nhắm vào thuộc tính id trong tag; không đụng tới nội dung text
+    // ví dụ: <p id="x">, <h2   id='y' >, <div id=z>
+    return html.replace(/\s+id\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
 }

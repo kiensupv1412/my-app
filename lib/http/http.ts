@@ -1,6 +1,6 @@
 import { AppError } from "./errors";
 import { joinBase } from "./constants";
-import { signIn } from 'next-auth/react';
+import { signIn } from "next-auth/react";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -8,7 +8,6 @@ export type ApiInit = Omit<RequestInit, "body" | "method" | "headers"> & {
     method?: HttpMethod;
     headers?: Record<string, string>;
     json?: any;                 // body json
-    token?: string | null;      // bearer token
     timeoutMs?: number;         // abort timeout
     retry?: { attempts?: number; baseDelayMs?: number; onRetry?: (e: any, n: number) => void };
 };
@@ -21,7 +20,6 @@ export async function apiFetch<T = any>(path: string, init: ApiInit = {}): Promi
         method = "GET",
         headers = {},
         json,
-        token,
         timeoutMs = 15000,
         retry = { attempts: 0, baseDelayMs: 300 },
         ...rest
@@ -40,12 +38,12 @@ export async function apiFetch<T = any>(path: string, init: ApiInit = {}): Promi
         Accept: "application/json",
         ...headers,
     };
-    if (json !== undefined) baseHeaders["Content-Type"] = "application/json";
-    if (token) baseHeaders["Authorization"] = `Bearer ${token}`;
-
+    if (json !== undefined && !baseHeaders["Content-Type"]) {
+        baseHeaders["Content-Type"] = "application/json";
+    }
     const req: RequestInit = {
         method,
-        credentials: "include",
+        credentials: "include", // QUAN TRỌNG: gửi cookie session
         cache: "no-store",
         headers: baseHeaders,
         body: json !== undefined ? JSON.stringify(json) : undefined,
@@ -63,18 +61,17 @@ export async function apiFetch<T = any>(path: string, init: ApiInit = {}): Promi
             if (timeout) clearTimeout(timeout);
         }
 
-        // --- AUTH: nếu hết hạn token khi đang đứng tại trang → gọi signIn để đẩy ra login
+        // AUTH: nếu hết hạn session → bounce sang login
         if (res.status === 401 || res.status === 419 || res.status === 440) {
             if (typeof window !== "undefined") {
                 const now = Date.now();
                 if (now - __lastAuthBounceAt > 2000) { // debounce 2s
                     __lastAuthBounceAt = now;
                     const cb = window.location.pathname + window.location.search;
-                    // provider = undefined → NextAuth tự chọn trang /login của bạn
+                    // NextAuth: để provider undefined để dùng trang /login mặc định của bạn
                     void signIn(undefined, { callbackUrl: cb });
                 }
             }
-            // ném lỗi chuẩn hóa để SWR/logic phía trên có thể handle
             throw new AppError("Unauthorized", "auth", { status: res.status, retryable: false });
         }
 
@@ -129,7 +126,7 @@ function normalizeErrorMessage(payload: any, fallback: string): string {
     if (typeof payload?.message === "string") return payload.message;
     if (typeof payload?.error === "string") return payload.error;
     if (payload?.errors && typeof payload.errors === "object") {
-        try { return Object.values(payload.errors).flat().join("; "); } catch { }
+        try { return (Object.values(payload.errors) as any[]).flat().join("; "); } catch { /* ignore */ }
     }
     return fallback;
 }

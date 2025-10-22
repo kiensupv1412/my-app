@@ -7,9 +7,9 @@ type SwrContext = { signal?: AbortSignal };
 
 export const swrFetcher = async (
     key: SWRKey | string,
-    token?: string | null,
     ctx?: SwrContext
 ) => {
     const url = typeof key === 'string' ? key : keyToUrl(key);
-    return http.get(url, { token: token ?? undefined, signal: ctx?.signal as any });
+    // http.get() đã cấu hình credentials: 'include' ở trong
+    return http.get(url, { signal: ctx?.signal as any });
 };

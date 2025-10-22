@@ -9,3 +9,6 @@ exports.badRequest = (res, msg = "Bad request") =>
 
 exports.notFound = (res, msg = "Not found") =>
   res.status(404).json({ error: msg });
+
+exports.asyncWrap = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);

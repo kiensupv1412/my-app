@@ -7,8 +7,7 @@ import { chain } from "lodash";
 
 // Controller: media.controller.js
 
-export async function apiUpdateMedia(id: number, updateData: Partial<MediaItem>, token: string) {
-    if (!token) throw new Error('Chưa đăng nhập');
+export async function apiUpdateMedia(id: number, updateData: Partial<MediaItem>) {
 
     // Gửi request PUT đến API để cập nhật media
     try {
@@ -16,7 +15,6 @@ export async function apiUpdateMedia(id: number, updateData: Partial<MediaItem>,
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify(updateData),
         });
@@ -40,7 +38,6 @@ export async function apiUpdateMedia(id: number, updateData: Partial<MediaItem>,
 
 /** Upload 1 hoặc nhiều file. Có thể truyền folder_id hoặc folder_slug.
  *  Dùng XHR để có onProgress => cần URL tuyệt đối (BASE_URL).
- *  Tự thêm Authorization nếu cung cấp token (trừ khi headers đã set sẵn).
  */
 export async function apiUploadMedia(
     file: File,
@@ -49,7 +46,6 @@ export async function apiUploadMedia(
         folder_slug?: string | null;
         is_background?: boolean | null;
         headers?: Record<string, string>;
-        token?: string | null;
         onProgress?: (pct: number, evt: ProgressEvent) => void;
     }
 ) {
@@ -67,11 +63,8 @@ export async function apiUploadMedia(
         const xhr = new XMLHttpRequest();
         xhr.open("POST", url);
 
-        // Ưu tiên headers từ opts; tự thêm Authorization nếu có token mà header chưa set
         const headers: Record<string, string> = { ...(opts?.headers ?? {}) };
-        if (opts?.token && !headers["Authorization"]) {
-            headers["Authorization"] = `Bearer ${opts.token}`;
-        }
+
         for (const [k, v] of Object.entries(headers)) {
             if (k.toLowerCase() === "content-type") continue; // FormData tự set
             xhr.setRequestHeader(k, v);

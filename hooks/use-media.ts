@@ -14,9 +14,8 @@ export function useMediaPage(
     opts?: { onError?: (e: AppError) => void }
 ) {
     const { data: session } = useSession();
-    const token = session?.accessToken ?? null;
 
-    const key = token ? k.media(page, limit, (folderId ?? 'all') as any, token) : null;
+    const key = k.media(page, limit, (folderId ?? 'all'));
 
     // Lấy mutate riêng (không dùng swr.mutate)
     const {
@@ -25,7 +24,7 @@ export function useMediaPage(
         isLoading,
         mutate,               // << dùng biến mutate này
         isValidating,
-    } = useSWR<MediaResp, AppError>(key, (key, ctx) => swrFetcher(key, token, ctx), {
+    } = useSWR<MediaResp, AppError>(key, (key, ctx) => swrFetcher(key, ctx), {
         keepPreviousData: true,
         onError: opts?.onError,
     });
@@ -42,8 +41,7 @@ export function useMediaPage(
 
     // DELETE — API OK rồi mới update UI (không optimistic)
     async function remove(id: number | string) {
-        if (!token) throw new Error('Chưa đăng nhập');
-        await http.delete(`/media/${id}`, { method: 'DELETE', token }); // chờ server OK
+        await http.delete(`/media/${id}`, { method: 'DELETE' }); // chờ server OK
         await mutate((cur) => {
             if (!cur) return cur;
             const next = (cur.data ?? []).filter((m) => String(m.id) !== String(id));

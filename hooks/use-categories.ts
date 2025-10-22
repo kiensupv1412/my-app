@@ -1,29 +1,26 @@
+// hooks/use-taxonomies.ts
+'use client';
+
 import useSWR from 'swr';
-import { swrFetcher } from "@/lib/http";
-import { Categories, Tags } from "@/types";
-import { useSession } from "next-auth/react";
+import { swrFetcher } from '@/lib/http';
+import type { Categories, Tags } from '@/types';
 
-/* --------------------------- CATEGORIES  TAGS--------------------------- */
+/* --------------------------- CATEGORIES --------------------------- */
 export function useCategories() {
-    const { data: session } = useSession();
-    const token = session?.accessToken ?? null;
-
     const { data, error, isLoading, mutate } = useSWR<Categories>(
-        token ? ['/article/categories', token] : null,
-        ([url, t]) => swrFetcher(url, t),
+        '/article/categories',
+        (key, ctx) => swrFetcher(key, ctx),
         { revalidateOnFocus: false, keepPreviousData: true }
     );
 
     return { categories: data ?? [], error, isLoading, mutate };
 }
 
+/* ------------------------------ TAGS ------------------------------ */
 export function useTags() {
-    const { data: session } = useSession();
-    const token = session?.accessToken ?? null;
-
     const { data, error, isLoading, mutate } = useSWR<Tags>(
-        token ? ["/article/tags", token] : null,
-        ([url, t]) => swrFetcher(url, t),
+        '/article/tags',
+        (key, ctx) => swrFetcher(key, ctx),
         { revalidateOnFocus: false, keepPreviousData: true }
     );
 

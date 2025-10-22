@@ -5,21 +5,24 @@ import { swrFetcher, type AppError, http } from '@/lib/http';
 import type { Articles, Article, PaginationMeta, } from '@/types';
 
 /* ---------- (A) LIST + DELETE ---------- */
-export function useArticlesPage(page = 1, limit = 10, filters: Record<string, any> = {}) {
-    const { data: session } = useSession();
-    const token = session?.accessToken ?? null;
-
+export function useArticlesPage(
+    page = 1,
+    limit = 10,
+    filters: Record<string, any> = {}
+) {
+    // build query string params (lọc rỗng)
     const qs: Record<string, any> = { page, limit };
     for (const [k, v] of Object.entries(filters)) {
-        if (v !== undefined && v !== null && String(v).trim().length) qs[k] = String(v).trim();
+        if (v !== undefined && v !== null && String(v).trim().length) {
+            qs[k] = String(v).trim();
+        }
     }
 
-    // SWR key (relative path + params + token)
-    const key = token ? ['/article', qs, token] : null;
+    const key = ['/article', qs] as const;
 
     const { data, error, isLoading, mutate } = useSWR<any, AppError>(
         key,
-        (key, ctx) => swrFetcher(key, token, ctx),
+        (key, ctx) => swrFetcher(key, ctx),
         { keepPreviousData: true, dedupingInterval: 300 }
     );
 
@@ -36,16 +39,11 @@ export function useArticlesPage(page = 1, limit = 10, filters: Record<string, an
         next: data?.meta?.next ?? null,
     };
 
-    // --- ONLY DELETE (chỉ cập nhật UI sau khi API OK) ---
     async function remove(id: number | string) {
-        if (!token) throw new Error('Chưa đăng nhập');
+        // 1) gọi API xoá
+        await http.delete(`/article/delete/${id}`);
 
-        // 1) Gọi API xoá trước
-        await http.delete(`/article/delete/${id}`, { method: 'DELETE', token });
-        // Nếu backend là /article/delete/:id thì sửa lại path cho đúng!
-
-        // 2) API OK rồi mới cập nhật cache local (hoặc revalidate từ server)
-        // Cách A: cập nhật cache tại chỗ (nhanh, không gọi lại server)
+        // 2) cập nhật cache local (không revalidate)
         await mutate((cur: any) => {
             if (!cur) return cur;
             const nextPosts = (cur.posts ?? []).filter((x: any) => String(x.id) !== String(id));
@@ -53,21 +51,19 @@ export function useArticlesPage(page = 1, limit = 10, filters: Record<string, an
             return { ...cur, posts: nextPosts, meta: { ...(cur.meta || {}), total: nextTotal } };
         }, false);
 
-        // Cách B (tuỳ chọn): thay vì cập nhật tại chỗ, gọi lại server cho chắc dữ liệu
-        // await mutate(); 
+        // Hoặc: await mutate(); // nếu muốn gọi lại server
     }
 
     return { data: items, meta, error, isLoading, mutate, remove };
 }
 
-/* ---------- (B) DETAIL  ---------- */
+/* ---------- (B) DETAIL ---------- */
 export function useArticleEdit(id?: string | number) {
-    const { data: session } = useSession();
-    const token = session?.accessToken ?? null;
+    const key = id ? `/article/${id}` : null;
 
     const { data, error, isLoading, mutate } = useSWR<Article, AppError>(
-        token ? [`/article/${id}`, token] : null,
-        ([url, t]) => swrFetcher(url, t),
+        key,
+        (key, ctx) => swrFetcher(key, ctx),
         { revalidateOnFocus: false, keepPreviousData: true }
     );
 

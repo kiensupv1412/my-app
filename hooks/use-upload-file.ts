@@ -49,8 +49,6 @@ export function useUploadFile<Extra extends object = Record<string, never>>({
     autoResetMs = 800,
     ...props
 }: UseUploadFileProps<Extra> = {}) {
-    const { data: session } = useSession();
-    const token = (session as any)?.accessToken as string | undefined;
 
     const [uploadedFile, setUploadedFile] = React.useState<UploadedFile<Extra>>();
     const [uploadingFile, setUploadingFile] = React.useState<File>();
@@ -94,9 +92,7 @@ export function useUploadFile<Extra extends object = Record<string, never>>({
                 const xhr = new XMLHttpRequest();
                 xhr.open('POST', absEndpoint);
 
-                // headers: ưu tiên headers truyền vào; tự thêm Authorization nếu có token và chưa set
                 const headers: Record<string, string> = { ...(props.headers ?? {}) };
-                if (token && !headers['Authorization']) headers['Authorization'] = `Bearer ${token}`;
                 for (const [k, v] of Object.entries(headers)) {
                     if (k.toLowerCase() === 'content-type') continue; // FormData tự set
                     xhr.setRequestHeader(k, v);

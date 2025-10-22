@@ -14,7 +14,6 @@
 # testing
 /coverage
 **modules
-**public
 
 # next.js
 /.next/

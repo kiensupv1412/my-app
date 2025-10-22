@@ -1,6 +1,7 @@
 {
-    "typescript.tsdk": "node_modules/typescript/lib",
-    "files.exclude": {
-        "server/modules/gsc": true
-    },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.exclude": {
+    "server/modules/gsc": false,
+    "server/node_modules": false
+  }
 }
